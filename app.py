@@ -33,9 +33,6 @@ from scam_checker.step1 import Step1Result, read_and_clean_screenshot
 
 load_dotenv()  # reads the optional Google Safe Browsing key from a local .env file
 
-CHAT = "A chat"
-POST = "A post or listing"
-
 # Developer mode shows what Step 1 hands to Step 2. Users never see it.
 # Turn it on with:  streamlit run app.py -- --debug
 DEVELOPER_MODE = "--debug" in sys.argv[1:]
@@ -129,17 +126,16 @@ def ask_for_link() -> LinkReport | None:
     return report
 
 
-def ask_for_screenshot(artist: str) -> tuple[bytes | None, str]:
+def ask_for_screenshot(artist: str) -> bytes | None:
     st.subheader("3. Upload a screenshot")
     st.info("💡 Tip: try to capture **only** the listing or chat, not your whole screen.")
-    kind = st.radio("What does it show?", [CHAT, POST], horizontal=True)
     upload = st.file_uploader(
         "Screenshot (PNG or JPG)",
         type=["png", "jpg", "jpeg"],
         disabled=not artist,
         help="Type the artist's name first." if not artist else None,
     )
-    return (upload.getvalue() if upload else None), kind
+    return upload.getvalue() if upload else None
 
 
 def ask_for_crop(image: Image.Image) -> CropBox | None:
@@ -152,14 +148,6 @@ def ask_for_crop(image: Image.Image) -> CropBox | None:
     box = st_cropper(image, default_coords=full_image, return_type="box", box_color="#d6336c")
     crop_box = CropBox(box["left"], box["top"], box["width"], box["height"])
     return None if crop_box.covers_most_of(image.size) else crop_box
-
-
-def ask_remove_bars(kind: str, crop_box: CropBox | None) -> bool:
-    return st.checkbox(
-        "Remove the top bar (name and number) and the typing bar",
-        value=kind == CHAT and crop_box is None,
-        help="Best for chat screenshots that haven't been cropped.",
-    )
 
 
 def read_screenshot(image_bytes: bytes, crop_box: CropBox | None, artist: str, remove_bars: bool) -> CleaningReport:
@@ -234,10 +222,12 @@ def wait_for_read_button(screenshot_id: str) -> bool:
     return st.session_state.get("screenshot_to_read") == screenshot_id
 
 
-def screenshot_steps(artist: str, image_bytes: bytes, kind: str) -> tuple[str, CleaningReport] | None:
+def screenshot_steps(artist: str, image_bytes: bytes) -> tuple[str, CleaningReport] | None:
     """Crop, read and clean. Returns (final text, report), or None until the user presses Read."""
     crop_box = ask_for_crop(open_image(image_bytes))
-    remove_bars = ask_remove_bars(kind, crop_box)
+    # Bars are always removed for privacy, unless the user cropped: then they
+    # chose the area themselves, and trimming more could cut off the listing.
+    remove_bars = crop_box is None
     screenshot_id = fingerprint(image_bytes, crop_box)
     if not wait_for_read_button(screenshot_id):
         return None
@@ -250,10 +240,10 @@ def main() -> None:
     show_header()
     artist = ask_for_artist()
     where_found, link = ask_where_tickets_were_found()
-    image_bytes, kind = ask_for_screenshot(artist)
+    image_bytes = ask_for_screenshot(artist)
     if not (artist and image_bytes):
         return
-    screenshot_result = screenshot_steps(artist, image_bytes, kind)
+    screenshot_result = screenshot_steps(artist, image_bytes)
     if screenshot_result is None:
         return
     final_text, report = screenshot_result

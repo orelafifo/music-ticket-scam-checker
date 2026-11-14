@@ -12,9 +12,10 @@ from PIL import Image, ImageOps
 # size, and reading a smaller image is several times faster.
 MAX_LONG_SIDE_PIXELS = 1600
 
-# In chat apps the top bar holds the other person's name, number and photo,
-# and the bottom bar holds the "Type a message" box. These shares cover both
-# on common phones; they are only trimmed from chat screenshots that weren't cropped.
+# The top bar holds the phone's clock and, in chat apps, the other person's
+# name, number and photo; the bottom bar holds the "Type a message" box.
+# These shares cover both on common phones. They are trimmed automatically
+# unless the user crops the screenshot themselves.
 TOP_BAR_SHARE = 0.12
 BOTTOM_BAR_SHARE = 0.08
 

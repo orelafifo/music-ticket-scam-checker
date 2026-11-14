@@ -32,7 +32,7 @@ In the order the user sees it in the app:
 3. **Shows a tip:** "Try to capture ONLY the listing or chat", then takes the screenshot and lets you **crop** it.
 4. **Reads the text on this computer** with Qwen2.5-VL, a vision AI model run by the free Ollama app. Nothing is sent online. The model is only asked to copy the text out; it never judges it. Big screenshots are shrunk first, and the same screenshot is never read twice.
 5. **Removes personal details straight away**, before anything is shown or saved:
-   - the top bar (where the other person's name and number sit) and the typing bar, trimmed off chat screenshots before the model sees them
+   - the top bar (where the other person's name and number sit) and the typing bar, trimmed off automatically before the model sees them (unless you crop the screenshot yourself)
    - timestamps ("14:32", "2h", "Yesterday") and app words ("Reply", "Like", "Seen", "Typing…", "Online")
    - emails, @handles, phone numbers, sort codes, account numbers and card numbers
    - person names found by spaCy, except the artist you typed (small spelling differences are allowed, so "Taylor Swfit" still counts as Taylor Swift)
