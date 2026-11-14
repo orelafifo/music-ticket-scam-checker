@@ -52,7 +52,7 @@ def test_bars_are_cut_off_before_the_model_sees_the_image():
 
 
 def test_step1_result_can_be_handed_on_as_plain_data():
-    result = Step1Result(artist="Dave", source_app="WhatsApp", cleaned_text="hello")
+    result = Step1Result(artist="Dave", where_found="WhatsApp", cleaned_text="hello")
     data = result.to_dict()
     assert data["seller_source"] == "not sure"
     assert data["seller_account"] == {"follower_count": None, "account_age_months": None}

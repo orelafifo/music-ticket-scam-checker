@@ -2,7 +2,8 @@
 streamlit>=1.50          # the web app (needs selectbox "accept_new_options" and pills)
 streamlit-cropper>=0.3   # drag-a-box cropping
 pillow>=10               # opening, cropping and shrinking images
-requests                 # talking to Ollama, and the website-age lookup
+requests                 # talking to Ollama, and the website checks
+python-dotenv            # reads the optional Google key from .env
 
 # Step 1: finding names
 spacy>=3.8,<3.9

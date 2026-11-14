@@ -17,8 +17,6 @@ from .privacy.names import NameFinder
 from .screenshot.image_prep import shrink_for_reading, trim_app_bars
 from .screenshot.ocr import CachedTextReader
 
-SOURCE_APPS = ["WhatsApp", "Instagram", "TikTok", "X (Twitter)", "Other"]
-
 
 def read_and_clean_screenshot(
     image: Image.Image,
@@ -44,7 +42,7 @@ class Step1Result:
     """Everything Step 2 will receive. Contains no raw screenshot text."""
 
     artist: str
-    source_app: str
+    where_found: str
     cleaned_text: str
     removed_counts: dict[str, int] = field(default_factory=dict)
     link: LinkReport | None = None

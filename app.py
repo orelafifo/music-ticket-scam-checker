@@ -9,10 +9,12 @@ It does not give a scam verdict yet; that arrives in Step 2.
 from __future__ import annotations
 
 import streamlit as st
+from dotenv import load_dotenv
 from PIL import Image
 
+from scam_checker.context import website_records
 from scam_checker.context.artists import load_artist_suggestions
-from scam_checker.context.link_check import LinkReport, check_link, lookup_domain_age_days
+from scam_checker.context.link_check import LinkReport, WebsiteLookups, check_link
 from scam_checker.context.seller import (
     EXAMPLE_ANSWERS,
     QUICK_PICKS,
@@ -20,11 +22,14 @@ from scam_checker.context.seller import (
     SellerAccount,
     SellerSource,
 )
+from scam_checker.context.where_found import OTHER, WEBSITE, WHERE_FOUND_OPTIONS
 from scam_checker.privacy.cleaner import CleaningReport
 from scam_checker.privacy.names import SpacyNameFinder
 from scam_checker.screenshot.image_prep import CropBox, crop_image, fingerprint, open_image
 from scam_checker.screenshot.ocr import CachedTextReader, OllamaVisionReader, TextReadingError
-from scam_checker.step1 import SOURCE_APPS, Step1Result, read_and_clean_screenshot
+from scam_checker.step1 import Step1Result, read_and_clean_screenshot
+
+load_dotenv()  # reads the optional Google Safe Browsing key from a local .env file
 
 CHAT = "A chat"
 POST = "A post or listing"
@@ -43,9 +48,23 @@ def shared_name_finder() -> SpacyNameFinder:
     return SpacyNameFinder()
 
 
+# Public records about a website change slowly, so each is looked up at most once a day.
 @st.cache_data(ttl=24 * 3600, show_spinner=False)
 def cached_domain_age(domain: str) -> int | None:
-    return lookup_domain_age_days(domain)
+    return website_records.lookup_domain_age_days(domain)
+
+
+@st.cache_data(ttl=24 * 3600, show_spinner=False)
+def cached_certificate_age(domain: str) -> int | None:
+    return website_records.lookup_certificate_age_days(domain)
+
+
+@st.cache_data(ttl=24 * 3600, show_spinner=False)
+def cached_blocklist(domain: str) -> bool | None:
+    return website_records.lookup_on_blocklist(domain)
+
+
+CACHED_LOOKUPS = WebsiteLookups(cached_domain_age, cached_certificate_age, cached_blocklist)
 
 
 def session_text_reader() -> CachedTextReader:
@@ -76,19 +95,45 @@ def ask_for_artist() -> str:
     return (artist or "").strip()
 
 
-def ask_for_screenshot(artist: str) -> tuple[bytes | None, str, str]:
-    st.subheader("2. Upload a screenshot")
+def ask_where_tickets_were_found() -> tuple[str, LinkReport | None]:
+    st.subheader("2. Where did you find the tickets?")
+    choice = st.selectbox(
+        "Where did you find the tickets?",
+        WHERE_FOUND_OPTIONS,
+        index=None,
+        placeholder="Choose one",
+        label_visibility="collapsed",
+    )
+    if choice == OTHER:
+        return st.text_input("Where was it?", placeholder="e.g. a Discord server").strip(), None
+    if choice == WEBSITE:
+        return WEBSITE, ask_for_link()
+    return choice or "", None
+
+
+def ask_for_link() -> LinkReport | None:
+    link = st.text_input("Paste the website link", placeholder="https://...")
+    st.caption("We never open the link. We only check the address and public records about it.")
+    if not link.strip():
+        return None
+    with st.spinner("Checking the website..."):
+        report = check_link(link, CACHED_LOOKUPS)
+    for note in report.notes:
+        st.markdown(f"- {note}")
+    return report
+
+
+def ask_for_screenshot(artist: str) -> tuple[bytes | None, str]:
+    st.subheader("3. Upload a screenshot")
     st.info("💡 Tip: try to capture **only** the listing or chat, not your whole screen.")
-    left, right = st.columns(2)
-    source_app = left.selectbox("Which app is it from?", SOURCE_APPS)
-    kind = right.radio("What does it show?", [CHAT, POST], horizontal=True)
+    kind = st.radio("What does it show?", [CHAT, POST], horizontal=True)
     upload = st.file_uploader(
         "Screenshot (PNG or JPG)",
         type=["png", "jpg", "jpeg"],
         disabled=not artist,
         help="Type the artist's name first." if not artist else None,
     )
-    return (upload.getvalue() if upload else None), source_app, kind
+    return (upload.getvalue() if upload else None), kind
 
 
 def ask_for_crop(image: Image.Image) -> CropBox | None:
@@ -129,22 +174,10 @@ def read_screenshot(image_bytes: bytes, crop_box: CropBox | None, artist: str, r
 
 
 def show_cleaned_text(report: CleaningReport) -> str:
-    st.subheader("3. Check the cleaned text")
+    st.subheader("4. Check the cleaned text")
     st.caption(report.summary())
     st.text_area("Text that will be checked", report.cleaned_text, disabled=True, height=150)
     return report.cleaned_text
-
-
-def ask_for_link() -> LinkReport | None:
-    st.subheader("4. Is the listing on a website? (optional)")
-    link = st.text_input("Paste the link", placeholder="https://...")
-    st.caption("We never open the link. We only look at the web address.")
-    if not link.strip():
-        return None
-    report = check_link(link, lookup_age=cached_domain_age)
-    for note in report.notes:
-        st.markdown(f"- {note}")
-    return report
 
 
 def ask_how_seller_was_found() -> tuple[str, SellerSource]:
@@ -209,19 +242,19 @@ def main() -> None:
     st.set_page_config(page_title="Music Ticket Scam Checker", page_icon="🎟️", layout="centered")
     show_header()
     artist = ask_for_artist()
-    image_bytes, source_app, kind = ask_for_screenshot(artist)
+    where_found, link = ask_where_tickets_were_found()
+    image_bytes, kind = ask_for_screenshot(artist)
     if not (artist and image_bytes):
         return
     screenshot_result = screenshot_steps(artist, image_bytes, kind)
     if screenshot_result is None:
         return
     final_text, report = screenshot_result
-    link = ask_for_link()
     seller_answer, seller_source = ask_how_seller_was_found()
     show_handover(
         Step1Result(
             artist=artist,
-            source_app=source_app,
+            where_found=where_found,
             cleaned_text=final_text,
             removed_counts=dict(report.removed_counts),
             link=link,

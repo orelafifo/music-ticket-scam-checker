@@ -28,8 +28,8 @@ The AI model only *reads* the text. It never makes the final decision.
 In the order the user sees it in the app:
 
 1. **Asks for the artist first**, with suggestions as you type. This stops the artist's name being removed by mistake.
-2. **Shows a tip:** "Try to capture ONLY the listing or chat."
-3. **Takes the screenshot** (X, TikTok, Instagram, WhatsApp or other) and lets you **crop** it.
+2. **Asks where you found the tickets** (WhatsApp, Instagram, TikTok, X, Facebook, a forum, a website or other). Choosing **Other** lets you type the answer. Choosing **A website** asks for the link and checks whether the site looks fake or dodgy (see below).
+3. **Shows a tip:** "Try to capture ONLY the listing or chat", then takes the screenshot and lets you **crop** it.
 4. **Reads the text on this computer** with Qwen2.5-VL, a vision AI model run by the free Ollama app. Nothing is sent online. The model is only asked to copy the text out; it never judges it. Big screenshots are shrunk first, and the same screenshot is never read twice.
 5. **Removes personal details straight away**, before anything is shown or saved:
    - the top bar (where the other person's name and number sit) and the typing bar, trimmed off chat screenshots before the model sees them
@@ -38,9 +38,22 @@ In the order the user sees it in the app:
    - person names found by spaCy, except the artist you typed (small spelling differences are allowed, so "Taylor Swfit" still counts as Taylor Swift)
 6. **Never removes warning signs**: payment and platform words (PayPal, Revolut, Monzo, Ticketmaster, Twickets, AXS…) and big venue names are always kept, because Step 2 needs them.
 7. **Shows the cleaned text** that will be checked.
-8. **Checks a link** if the listing is on a website: is it a known site, a copy of a known site, shortened, insecure, or brand new? **The link is never opened.**
-9. **Asks how you came across the seller**, with quick-pick buttons or your own words, and turns the answer into a category.
-10. **Asks for the seller's follower count and account age**, with an N/A option. N/A means "unknown", never "suspicious".
+8. **Asks how you came across the seller**, with quick-pick buttons or your own words, and turns the answer into a category.
+9. **Asks for the seller's follower count and account age**, with an N/A option. N/A means "unknown", never "suspicious".
+
+### Website check (the link is never opened)
+
+| Check | What it looks for |
+|---|---|
+| Known sites | Is it a recognised ticket, resale or social site? |
+| Copycat address | Does it imitate a real site, e.g. "ticketrnaster-uk.com"? |
+| Shortened or insecure link | Does it hide the real address (bit.ly) or lack https? |
+| Risky address ending | Endings often used by scam sites, e.g. .shop or .xyz (a weak sign on its own) |
+| Website age | When the address was registered (public RDAP registry) |
+| Security certificate age | When the site's first padlock certificate was issued (public crt.sh logs) |
+| Google's scam list | Is it on Google Safe Browsing's list of scam and dangerous sites? (optional key, see below) |
+
+Only the website's address (e.g. `ticket-deals.shop`) is sent to these services, never the full link, because the rest of a link can contain an ID tied to the person checking. If a lookup fails, it is skipped and never counts against the website.
 
 At the end the app shows exactly what Step 2 will receive.
 
@@ -77,6 +90,16 @@ ollama pull qwen2.5vl:3b
 ```
 
 Ollama needs to be open whenever you use the app.
+
+### Optional: Google's scam list
+
+The website check can also ask Google Safe Browsing whether a site is a known scam. It needs a free key:
+
+1. Go to [console.cloud.google.com](https://console.cloud.google.com), create a project and turn on the **Safe Browsing API**.
+2. Under **APIs & Services → Credentials**, create an **API key**.
+3. In this folder, copy `.env.example` to a new file called `.env` and paste your key after `GOOGLE_SAFE_BROWSING_KEY=`.
+
+The `.env` file is never uploaded to GitHub. Google's free key is for non-commercial use; a bank would use Google's paid version (Web Risk).
 
 ## Run the app
 
@@ -119,8 +142,10 @@ scam_checker/
     protected_words.py         Words that are never removed (payment, platform, venue)
   context/
     artists.py                 Artist suggestions and forgiving name matching
-    link_check.py              Checks a web address without opening it
-    known_sites.py             The list of ticket, resale and social sites
+    where_found.py             The "Where did you find the tickets?" options
+    link_check.py              Checks whether a website looks fake, without opening it
+    website_records.py         Public-record lookups: registration date, certificates, Google's scam list
+    known_sites.py             Known ticket, resale and social sites, and risky address endings
     seller.py                  How you met the seller, followers and account age
 data/artist_suggestions.txt    Artists suggested while typing (add more any time)
 examples/                      A made-up screenshot for demos and tests
@@ -135,7 +160,7 @@ tests/                         Automatic tests
 - **Removal happens straight after reading,** inside one function, so the uncleaned text is never shown or saved.
 - **The app only counts what it removed** ("1 × phone number"). It never keeps the removed details.
 - **Remembered reading results belong to one visitor only.** If the app is put online, one person's screenshot is never kept where another visitor could reach it.
-- **Links are never opened.** Only the web address is checked, plus its public registration date.
+- **Links are never opened.** Only the website's address is checked against public records, and only the address is sent, never the full link.
 
 See [`docs/redaction_example.md`](docs/redaction_example.md) for a real before-and-after run. To recreate it (Ollama must be open):
 

@@ -77,3 +77,8 @@ BRAND_WORDS = [
 
 # Endings where the main domain has three parts, e.g. ticketmaster.co.uk.
 TWO_PART_ENDINGS = {"co.uk", "org.uk", "ac.uk", "com.au", "co.nz", "co.za", "com.br"}
+
+# Address endings that scam reports show up on far more than average, usually
+# because they are cheap. A weak sign only: plenty of genuine sites use them.
+# ".live" is left out on purpose because Twickets uses it.
+RISKY_ENDINGS = {"shop", "top", "xyz", "online", "site", "store", "click", "icu", "buzz", "sbs", "cfd", "cyou"}
