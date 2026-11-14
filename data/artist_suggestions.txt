@@ -1,0 +1,41 @@
+# Suggestions shown while the user types the artist's name.
+# One artist per line. Users can still type any artist that isn't here.
+Adele
+Arctic Monkeys
+Ariana Grande
+Beyoncé
+Billie Eilish
+BLACKPINK
+BTS
+Burna Boy
+Central Cee
+Charli XCX
+Chappell Roan
+Coldplay
+Dave
+Doja Cat
+Drake
+Dua Lipa
+Ed Sheeran
+Fred again..
+Harry Styles
+Kendrick Lamar
+Lady Gaga
+Lewis Capaldi
+Little Simz
+Metallica
+Noah Kahan
+Oasis
+Olivia Rodrigo
+Rema
+Sabrina Carpenter
+SEVENTEEN
+Stormzy
+Stray Kids
+SZA
+Taylor Swift
+Tems
+The Weeknd
+Travis Scott
+Tyla
+Wizkid

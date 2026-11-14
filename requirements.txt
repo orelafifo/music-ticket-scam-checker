@@ -1,0 +1,13 @@
+# App
+streamlit>=1.50          # the web app (needs selectbox "accept_new_options" and pills)
+streamlit-cropper>=0.3   # drag-a-box cropping
+pillow>=10               # opening, cropping and shrinking images
+numpy
+
+# Step 1: reading and cleaning
+easyocr>=1.7             # local OCR (downloads its model on first run, then works offline)
+spacy>=3.8,<3.9          # finds person names
+en_core_web_sm @ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl
+
+# Link check (website age lookup)
+requests
