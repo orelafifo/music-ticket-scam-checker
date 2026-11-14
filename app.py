@@ -8,6 +8,8 @@ It does not give a scam verdict yet; that arrives in Step 2.
 
 from __future__ import annotations
 
+import sys
+
 import streamlit as st
 from dotenv import load_dotenv
 from PIL import Image
@@ -33,6 +35,10 @@ load_dotenv()  # reads the optional Google Safe Browsing key from a local .env f
 
 CHAT = "A chat"
 POST = "A post or listing"
+
+# Developer mode shows what Step 1 hands to Step 2. Users never see it.
+# Turn it on with:  streamlit run app.py -- --debug
+DEVELOPER_MODE = "--debug" in sys.argv[1:]
 
 
 # --- shared, heavy resources (hold models only, never user data) -------------
@@ -210,11 +216,12 @@ def ask_about_seller_account() -> SellerAccount:
     return SellerAccount(follower_count=followers, account_age_months=age_months)
 
 
-def show_handover(result: Step1Result) -> None:
-    st.subheader("Ready for Step 2")
-    st.success("Step 1 is done. The scam check itself arrives in Step 2.")
-    with st.expander("See exactly what Step 2 will receive"):
-        st.json(result.to_dict())
+def show_developer_view(result: Step1Result) -> None:
+    if not DEVELOPER_MODE:
+        return
+    st.divider()
+    st.caption("Developer mode: what Step 1 hands to Step 2")
+    st.json(result.to_dict(), expanded=False)
 
 
 # --- the page ----------------------------------------------------------------
@@ -251,7 +258,7 @@ def main() -> None:
         return
     final_text, report = screenshot_result
     seller_answer, seller_source = ask_how_seller_was_found()
-    show_handover(
+    show_developer_view(
         Step1Result(
             artist=artist,
             where_found=where_found,
