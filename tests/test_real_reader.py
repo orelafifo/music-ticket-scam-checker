@@ -1,0 +1,42 @@
+"""End-to-end check with the real Qwen2.5-VL model on the made-up example screenshot.
+
+Needs the Ollama app open and the model downloaded. Slow, so it only runs when asked:
+    pytest -m slow
+"""
+
+from pathlib import Path
+
+import pytest
+import requests
+
+from scam_checker.screenshot.image_prep import fingerprint, open_image
+from scam_checker.screenshot.ocr import OLLAMA_URL, CachedTextReader, OllamaVisionReader
+from scam_checker.step1 import read_and_clean_screenshot
+
+EXAMPLE = Path(__file__).resolve().parents[1] / "examples" / "fake_whatsapp_chat.png"
+
+
+def ollama_is_running() -> bool:
+    try:
+        return requests.get(OLLAMA_URL, timeout=2).ok
+    except requests.ConnectionError:
+        return False
+
+
+@pytest.mark.slow
+def test_example_screenshot_is_read_and_cleaned(spacy_name_finder):
+    if not ollama_is_running():
+        pytest.skip("Ollama isn't running")
+    image_bytes = EXAMPLE.read_bytes()
+    report = read_and_clean_screenshot(
+        open_image(image_bytes),
+        fingerprint(image_bytes),
+        CachedTextReader(OllamaVisionReader()),
+        spacy_name_finder,
+        artist="Dave",
+        remove_bars=True,
+    )
+    for warning_sign in ["Bank transfer", "PayPal", "Twickets", "85 each", "Dave"]:
+        assert warning_sign in report.cleaned_text
+    for personal_detail in ["Jess Smith", "07123", "14:32", "Type a message"]:
+        assert personal_detail not in report.cleaned_text

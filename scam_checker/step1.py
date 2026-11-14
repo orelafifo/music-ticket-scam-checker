@@ -14,8 +14,7 @@ from .context.link_check import LinkReport
 from .context.seller import SellerAccount, SellerSource
 from .privacy.cleaner import CleaningReport, clean_lines
 from .privacy.names import NameFinder
-from .screenshot.image_prep import shrink_for_reading
-from .screenshot.layout import boxes_to_lines, remove_app_bars
+from .screenshot.image_prep import shrink_for_reading, trim_app_bars
 from .screenshot.ocr import CachedTextReader
 
 SOURCE_APPS = ["WhatsApp", "Instagram", "TikTok", "X (Twitter)", "Other"]
@@ -29,13 +28,14 @@ def read_and_clean_screenshot(
     artist: str,
     remove_bars: bool,
 ) -> CleaningReport:
-    boxes = reader.read(shrink_for_reading(image), image_fingerprint)
-    bars_removed = 0
     if remove_bars:
-        boxes, bars_removed = remove_app_bars(boxes)
-    report = clean_lines(boxes_to_lines(boxes), artist, name_finder)
-    if bars_removed:
-        report.removed_counts["top or bottom bar text"] += bars_removed
+        image = trim_app_bars(image)
+    # Trimmed and untrimmed versions of one screenshot are cached separately.
+    screenshot_id = f"{image_fingerprint}-{'trimmed' if remove_bars else 'full'}"
+    lines = reader.read(shrink_for_reading(image), screenshot_id)
+    report = clean_lines(lines, artist, name_finder)
+    if remove_bars:
+        report.removed_counts["top and bottom bars"] += 1
     return report
 
 

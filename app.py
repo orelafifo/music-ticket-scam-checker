@@ -23,7 +23,7 @@ from scam_checker.context.seller import (
 from scam_checker.privacy.cleaner import CleaningReport
 from scam_checker.privacy.names import SpacyNameFinder
 from scam_checker.screenshot.image_prep import CropBox, crop_image, fingerprint, open_image
-from scam_checker.screenshot.ocr import CachedTextReader, EasyOcrReader
+from scam_checker.screenshot.ocr import CachedTextReader, OllamaVisionReader, TextReadingError
 from scam_checker.step1 import SOURCE_APPS, Step1Result, read_and_clean_screenshot
 
 CHAT = "A chat"
@@ -33,9 +33,9 @@ POST = "A post or listing"
 # --- shared, heavy resources (hold models only, never user data) -------------
 
 
-@st.cache_resource(show_spinner="Loading the text reader (first time only)...")
-def shared_ocr_model() -> EasyOcrReader:
-    return EasyOcrReader()
+@st.cache_resource(show_spinner=False)
+def shared_vision_reader() -> OllamaVisionReader:
+    return OllamaVisionReader()
 
 
 @st.cache_resource(show_spinner="Loading the name finder (first time only)...")
@@ -51,7 +51,7 @@ def cached_domain_age(domain: str) -> int | None:
 def session_text_reader() -> CachedTextReader:
     # One cache per visitor: it holds text before cleaning, so it is never shared.
     if "text_reader" not in st.session_state:
-        st.session_state.text_reader = CachedTextReader(shared_ocr_model())
+        st.session_state.text_reader = CachedTextReader(shared_vision_reader())
     return st.session_state.text_reader
 
 
@@ -113,15 +113,19 @@ def ask_remove_bars(kind: str, crop_box: CropBox | None) -> bool:
 
 def read_screenshot(image_bytes: bytes, crop_box: CropBox | None, artist: str, remove_bars: bool) -> CleaningReport:
     image = crop_image(open_image(image_bytes), crop_box)
-    with st.spinner("Reading the screenshot on this computer..."):
-        return read_and_clean_screenshot(
-            image,
-            fingerprint(image_bytes, crop_box),
-            session_text_reader(),
-            shared_name_finder(),
-            artist,
-            remove_bars,
-        )
+    try:
+        with st.spinner("Reading the screenshot on this computer (the first one can take a minute)..."):
+            return read_and_clean_screenshot(
+                image,
+                fingerprint(image_bytes, crop_box),
+                session_text_reader(),
+                shared_name_finder(),
+                artist,
+                remove_bars,
+            )
+    except TextReadingError as problem:
+        st.error(str(problem))
+        st.stop()
 
 
 def show_cleaned_text(report: CleaningReport) -> str:

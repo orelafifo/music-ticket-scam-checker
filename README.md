@@ -30,9 +30,9 @@ In the order the user sees it in the app:
 1. **Asks for the artist first**, with suggestions as you type. This stops the artist's name being removed by mistake.
 2. **Shows a tip:** "Try to capture ONLY the listing or chat."
 3. **Takes the screenshot** (X, TikTok, Instagram, WhatsApp or other) and lets you **crop** it.
-4. **Reads the text on this computer** with EasyOCR. Nothing is sent online. Big screenshots are shrunk first, and the same screenshot is never read twice.
+4. **Reads the text on this computer** with Qwen2.5-VL, a vision AI model run by the free Ollama app. Nothing is sent online. The model is only asked to copy the text out; it never judges it. Big screenshots are shrunk first, and the same screenshot is never read twice.
 5. **Removes personal details straight away**, before anything is shown or saved:
-   - the top bar (where the other person's name and number sit) and the typing bar, using where the text sits on screen
+   - the top bar (where the other person's name and number sit) and the typing bar, trimmed off chat screenshots before the model sees them
    - timestamps ("14:32", "2h", "Yesterday") and app words ("Reply", "Like", "Seen", "Typing…", "Online")
    - emails, @handles, phone numbers, sort codes, account numbers and card numbers
    - person names found by spaCy, except the artist you typed (small spelling differences are allowed, so "Taylor Swfit" still counts as Taylor Swift)
@@ -68,7 +68,15 @@ Install everything the app needs:
 pip install -r requirements-dev.txt
 ```
 
-The first time you read a screenshot, EasyOCR downloads its model (about 100 MB). After that it works offline.
+Install **Ollama**, the free app that runs the reading model on your computer: download it from [ollama.com](https://ollama.com), open it, and it will sit in your menu bar.
+
+Then download the reading model (about 3 GB, once):
+
+```bash
+ollama pull qwen2.5vl:3b
+```
+
+Ollama needs to be open whenever you use the app.
 
 ## Run the app
 
@@ -86,7 +94,7 @@ The quick tests take a few seconds:
 pytest
 ```
 
-The slow test uses the real OCR model on the example screenshot:
+The slow test uses the real reading model on the example screenshot (Ollama must be open):
 
 ```bash
 pytest -m slow
@@ -101,10 +109,8 @@ app.py                         The Streamlit app (only screens and buttons, no c
 scam_checker/
   step1.py                     Runs Step 1 from start to finish
   screenshot/
-    image_prep.py              Open, crop, shrink and fingerprint the image
-    ocr.py                     Read text with EasyOCR; remember results so nothing is read twice
-    ocr_fixes.py               Fix OCR misreads, e.g. "E85" back to "£85"
-    layout.py                  Drop the top and bottom bars using where text sits
+    image_prep.py              Open, crop, trim the app bars, shrink and fingerprint the image
+    ocr.py                     Read text with Qwen2.5-VL through Ollama; remember results so nothing is read twice
   privacy/
     cleaner.py                 Runs every cleaning stage and counts what was removed
     clutter.py                 Timestamps and app words
@@ -131,7 +137,7 @@ tests/                         Automatic tests
 - **Remembered reading results belong to one visitor only.** If the app is put online, one person's screenshot is never kept where another visitor could reach it.
 - **Links are never opened.** Only the web address is checked, plus its public registration date.
 
-See [`docs/redaction_example.md`](docs/redaction_example.md) for a real before-and-after run. To recreate it:
+See [`docs/redaction_example.md`](docs/redaction_example.md) for a real before-and-after run. To recreate it (Ollama must be open):
 
 ```bash
 python scripts/make_redaction_example.py
@@ -139,9 +145,5 @@ python scripts/make_redaction_example.py
 
 ## Known limits
 
-- **spaCy's small model misses some names**, especially in lower case, and sometimes takes a nearby word with the name ("Sorry Jess" becomes "[name]"). Cropping the screenshot to just the messages helps.
-- **OCR misreads some symbols:** "£" can come out as "E" (fixed automatically) or "€" (not fixed yet).
-- **The top and bottom bar sizes are averages** for common phones. Cropping is the most reliable way to remove them.
-- **Clock times inside a message are removed too**, e.g. "doors at 19:30". Dates are kept.
-- **"How you met the seller" uses simple keywords for now.** It is built so the Step 2 AI model can replace it without changing the app.
-- **The website-age check needs the internet.** If it can't connect, it is skipped and never counts against the seller.
+- Some names can be missed, so cropping to just the messages gives the best result.
+- The reading model can occasionally misread a word or symbol.

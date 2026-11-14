@@ -2,12 +2,10 @@
 streamlit>=1.50          # the web app (needs selectbox "accept_new_options" and pills)
 streamlit-cropper>=0.3   # drag-a-box cropping
 pillow>=10               # opening, cropping and shrinking images
-numpy
+requests                 # talking to Ollama, and the website-age lookup
 
-# Step 1: reading and cleaning
-easyocr>=1.7             # local OCR (downloads its model on first run, then works offline)
-spacy>=3.8,<3.9          # finds person names
+# Step 1: finding names
+spacy>=3.8,<3.9
 en_core_web_sm @ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl
 
-# Link check (website age lookup)
-requests
+# Reading screenshots needs the Ollama app (not a Python package): see the README.

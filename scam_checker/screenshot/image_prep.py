@@ -1,4 +1,4 @@
-"""Prepare a screenshot for text reading: open it, crop it, shrink it, fingerprint it."""
+"""Prepare a screenshot for reading: open it, crop it, trim the app bars, shrink it, fingerprint it."""
 
 from __future__ import annotations
 
@@ -11,6 +11,12 @@ from PIL import Image, ImageOps
 # Phone screenshots are often 2,500+ pixels tall. Text stays readable at this
 # size, and reading a smaller image is several times faster.
 MAX_LONG_SIDE_PIXELS = 1600
+
+# In chat apps the top bar holds the other person's name, number and photo,
+# and the bottom bar holds the "Type a message" box. These shares cover both
+# on common phones; they are only trimmed from chat screenshots that weren't cropped.
+TOP_BAR_SHARE = 0.12
+BOTTOM_BAR_SHARE = 0.08
 
 
 @dataclass(frozen=True)
@@ -42,6 +48,15 @@ def crop_image(image: Image.Image, crop_box: CropBox | None) -> Image.Image:
     if crop_box is None:
         return image
     return image.crop(crop_box.as_pillow_box())
+
+
+def trim_app_bars(
+    image: Image.Image, top_share: float = TOP_BAR_SHARE, bottom_share: float = BOTTOM_BAR_SHARE
+) -> Image.Image:
+    """Cut off the top and bottom bars, so the reading model never sees them."""
+    top = round(image.height * top_share)
+    bottom = round(image.height * (1 - bottom_share))
+    return image.crop((0, top, image.width, bottom))
 
 
 def shrink_for_reading(image: Image.Image, max_long_side: int = MAX_LONG_SIDE_PIXELS) -> Image.Image:
