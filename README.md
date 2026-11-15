@@ -109,7 +109,7 @@ streamlit run app.py
 
 It opens in your browser. To try it without a real screenshot, upload `examples/fake_whatsapp_chat.png` and type **Dave** as the artist. Everything in that image is made up.
 
-To also see exactly what Step 1 hands to Step 2 (for building and testing only; users never see this), start it in developer mode:
+To also see what the model read before cleaning, and exactly what Step 1 hands to Step 2 (for building and testing only; users never see this), start it in developer mode:
 
 ```bash
 streamlit run app.py -- --debug

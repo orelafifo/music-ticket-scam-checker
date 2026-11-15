@@ -44,6 +44,13 @@ def test_same_screenshot_and_crop_give_the_same_fingerprint():
     assert fingerprint(b"abc", crop) != fingerprint(b"abc", None)
 
 
+def test_latest_reading_is_available_for_developer_mode():
+    cached = CachedTextReader(CountingReader())
+    assert cached.latest_lines == []
+    cached.read(Image.new("RGB", (10, 10)), "id")
+    assert cached.latest_lines == ["hello"]
+
+
 def test_same_screenshot_is_only_read_once():
     reader = CountingReader()
     cached = CachedTextReader(reader)

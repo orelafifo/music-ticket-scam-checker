@@ -223,6 +223,9 @@ def show_developer_view(result: Step1Result) -> None:
     if not DEVELOPER_MODE:
         return
     st.divider()
+    # Uncleaned text, shown only on the developer's own machine to check what the model read.
+    st.caption("Developer mode: what Qwen read, before cleaning")
+    st.text_area("Raw reading", "\n".join(session_text_reader().latest_lines), disabled=True, height=150)
     st.caption("Developer mode: what Step 1 hands to Step 2")
     st.json(result.to_dict(), expanded=False)
 

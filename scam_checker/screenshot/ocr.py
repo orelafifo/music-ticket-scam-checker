@@ -57,3 +57,8 @@ class CachedTextReader:
         if screenshot_id not in self._results:
             self._results = {screenshot_id: self._reader.read(image)}  # keep only the latest
         return self._results[screenshot_id]
+
+    @property
+    def latest_lines(self) -> list[str]:
+        """The last uncleaned reading. For developer mode only: never show this to users."""
+        return next(iter(self._results.values()), [])
