@@ -1,12 +1,16 @@
-"""Find person names with spaCy and replace every one that isn't the artist with [name].
+"""Find person names and replace every one that isn't the artist with [name].
 
-spaCy is a language toolkit; its small English model labels words that look
-like person names. It learned from examples rather than fixed rules, so it
-will miss some names (see "Known limits" in the README).
+Two finders run together and any name either one finds is removed:
+  * spaCy, a language toolkit whose small English model labels words that look
+    like person names. It is fast but relies on capital letters, so it misses
+    names like "hi jess" or "~Megan 💜".
+  * Qwen, the local AI model (see ai_names.py), which understands the text and
+    can tell a person from an artist or venue.
 """
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from typing import Protocol
 
@@ -41,6 +45,32 @@ class SpacyNameFinder:
         return [NameSpan(ent.start_char, ent.end_char, ent.text) for ent in entities if ent.label_ == "PERSON"]
 
 
+class CombinedNameFinder:
+    """Runs several finders and returns every name any of them found."""
+
+    def __init__(self, *finders: NameFinder):
+        self._finders = finders
+
+    def find_names(self, text: str) -> list[NameSpan]:
+        return [span for finder in self._finders for span in finder.find_names(text)]
+
+
+class CachedNameFinder:
+    """Remembers the latest result, so the app doesn't ask the AI again on every screen refresh.
+
+    Create one per user session: it holds names found in that user's text.
+    """
+
+    def __init__(self, finder: NameFinder):
+        self._finder = finder
+        self._results: dict[str, list[NameSpan]] = {}
+
+    def find_names(self, text: str) -> list[NameSpan]:
+        if text not in self._results:
+            self._results = {text: self._finder.find_names(text)}  # keep only the latest
+        return self._results[text]
+
+
 def should_keep_name(name: str, artist: str) -> bool:
     is_placeholder = "[" in name or "]" in name
     return is_placeholder or matches_artist(name, artist) or contains_protected_word(name)
@@ -48,13 +78,29 @@ def should_keep_name(name: str, artist: str) -> bool:
 
 def redact_names(text: str, artist: str, name_finder: NameFinder) -> tuple[str, int]:
     """Returns (text with names replaced, number of names replaced)."""
+    artist_spans = find_word(text, artist)
     names_to_replace = [
-        span for span in _without_overlaps(name_finder.find_names(text)) if not should_keep_name(span.text, artist)
+        span
+        for span in _without_overlaps(name_finder.find_names(text))
+        if not should_keep_name(span.text, artist) and not _overlaps_any(span, artist_spans)
     ]
     # Work from the end so earlier character positions stay correct.
     for span in reversed(names_to_replace):
         text = text[: span.start] + NAME_PLACEHOLDER + text[span.end :]
     return text, len(names_to_replace)
+
+
+def find_word(text: str, word: str) -> list[NameSpan]:
+    """Every whole-word, case-insensitive occurrence of `word` in `text`."""
+    if not word.strip():
+        return []
+    pattern = rf"(?<!\w){re.escape(word.strip())}(?!\w)"
+    return [NameSpan(m.start(), m.end(), m.group()) for m in re.finditer(pattern, text, re.IGNORECASE)]
+
+
+def _overlaps_any(span: NameSpan, others: list[NameSpan]) -> bool:
+    # Stops a first name alone ("Olivia") being removed from inside the artist's name ("Olivia Rodrigo").
+    return any(span.start < other.end and other.start < span.end for other in others)
 
 
 def _without_overlaps(spans: list[NameSpan]) -> list[NameSpan]:

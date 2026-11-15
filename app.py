@@ -25,10 +25,12 @@ from scam_checker.context.seller import (
     SellerSource,
 )
 from scam_checker.context.where_found import OTHER, WEBSITE, WHERE_FOUND_OPTIONS
+from scam_checker.local_ai import LocalAIError
+from scam_checker.privacy.ai_names import OllamaNameFinder
 from scam_checker.privacy.cleaner import CleaningReport
-from scam_checker.privacy.names import SpacyNameFinder
+from scam_checker.privacy.names import CachedNameFinder, CombinedNameFinder, NameFinder, SpacyNameFinder
 from scam_checker.screenshot.image_prep import CropBox, crop_image, fingerprint, open_image
-from scam_checker.screenshot.ocr import CachedTextReader, OllamaVisionReader, TextReadingError
+from scam_checker.screenshot.ocr import CachedTextReader, OllamaVisionReader
 from scam_checker.step1 import Step1Result, read_and_clean_screenshot
 
 load_dotenv()  # reads the optional Google Safe Browsing key from a local .env file
@@ -47,8 +49,13 @@ def shared_vision_reader() -> OllamaVisionReader:
 
 
 @st.cache_resource(show_spinner="Loading the name finder (first time only)...")
-def shared_name_finder() -> SpacyNameFinder:
+def shared_spacy_finder() -> SpacyNameFinder:
     return SpacyNameFinder()
+
+
+@st.cache_resource(show_spinner=False)
+def shared_ai_name_finder() -> OllamaNameFinder:
+    return OllamaNameFinder()
 
 
 # Public records about a website change slowly, so each is looked up at most once a day.
@@ -75,6 +82,14 @@ def session_text_reader() -> CachedTextReader:
     if "text_reader" not in st.session_state:
         st.session_state.text_reader = CachedTextReader(shared_vision_reader())
     return st.session_state.text_reader
+
+
+def session_name_finder() -> NameFinder:
+    """spaCy and the AI together: a name either one finds is removed."""
+    # The AI's answers are cached per visitor, because they come from that visitor's text.
+    if "ai_name_finder" not in st.session_state:
+        st.session_state.ai_name_finder = CachedNameFinder(shared_ai_name_finder())
+    return CombinedNameFinder(shared_spacy_finder(), st.session_state.ai_name_finder)
 
 
 # --- page sections, in the order the user sees them --------------------------
@@ -153,16 +168,16 @@ def ask_for_crop(image: Image.Image) -> CropBox | None:
 def read_screenshot(image_bytes: bytes, crop_box: CropBox | None, artist: str, remove_bars: bool) -> CleaningReport:
     image = crop_image(open_image(image_bytes), crop_box)
     try:
-        with st.spinner("Reading the screenshot on this computer (the first one can take a minute)..."):
+        with st.spinner("Reading the screenshot and removing personal details (the first one can take a minute)..."):
             return read_and_clean_screenshot(
                 image,
                 fingerprint(image_bytes, crop_box),
                 session_text_reader(),
-                shared_name_finder(),
+                session_name_finder(),
                 artist,
                 remove_bars,
             )
-    except TextReadingError as problem:
+    except LocalAIError as problem:
         st.error(str(problem))
         st.stop()
 

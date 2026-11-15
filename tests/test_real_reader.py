@@ -1,4 +1,4 @@
-"""End-to-end check with the real Qwen2.5-VL model on the made-up example screenshot.
+"""End-to-end checks with the real Qwen2.5-VL model.
 
 Needs the Ollama app open and the model downloaded. Slow, so it only runs when asked:
     pytest -m slow
@@ -9,8 +9,11 @@ from pathlib import Path
 import pytest
 import requests
 
+from scam_checker.local_ai import OLLAMA_URL
+from scam_checker.privacy.ai_names import OllamaNameFinder
+from scam_checker.privacy.names import CombinedNameFinder, redact_names
 from scam_checker.screenshot.image_prep import fingerprint, open_image
-from scam_checker.screenshot.ocr import OLLAMA_URL, CachedTextReader, OllamaVisionReader
+from scam_checker.screenshot.ocr import CachedTextReader, OllamaVisionReader
 from scam_checker.step1 import read_and_clean_screenshot
 
 EXAMPLE = Path(__file__).resolve().parents[1] / "examples" / "fake_whatsapp_chat.png"
@@ -32,7 +35,7 @@ def test_example_screenshot_is_read_and_cleaned(spacy_name_finder):
         open_image(image_bytes),
         fingerprint(image_bytes),
         CachedTextReader(OllamaVisionReader()),
-        spacy_name_finder,
+        CombinedNameFinder(spacy_name_finder, OllamaNameFinder()),
         artist="Dave",
         remove_bars=True,
     )
@@ -40,3 +43,13 @@ def test_example_screenshot_is_read_and_cleaned(spacy_name_finder):
         assert warning_sign in report.cleaned_text
     for personal_detail in ["Jess Smith", "07123", "14:32", "Type a message"]:
         assert personal_detail not in report.cleaned_text
+
+
+@pytest.mark.slow
+def test_ai_finds_names_spacy_misses():
+    if not ollama_is_running():
+        pytest.skip("Ollama isn't running")
+    text = "~Megan 💜💖💜\nHey guys, anyone want Olivia Rodrigo at The O2? text me x\nthanks jess"
+    cleaned, _ = redact_names(text, "Olivia Rodrigo", OllamaNameFinder())
+    assert "Megan" not in cleaned and "jess" not in cleaned
+    assert "Olivia Rodrigo" in cleaned and "The O2" in cleaned
