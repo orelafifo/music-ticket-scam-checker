@@ -1,5 +1,7 @@
 # 🎟️ Music Ticket Scam Checker (v3)
 
+[![Tests](https://github.com/orelafifo/music-ticket-scam-checker/actions/workflows/tests.yml/badge.svg)](https://github.com/orelafifo/music-ticket-scam-checker/actions/workflows/tests.yml)
+
 A prototype that checks screenshots of music ticket listings and chats for signs of a scam.
 It is designed to sit inside a banking app, so people can check before they pay a stranger for tickets.
 
@@ -109,7 +111,7 @@ streamlit run app.py
 
 It opens in your browser. To try it without a real screenshot, upload `examples/fake_whatsapp_chat.png` and type **Dave** as the artist. Everything in that image is made up.
 
-To also see exactly what Step 1 hands to Step 2 (for building and testing only; users never see this), start it in developer mode:
+To also see what the model read before cleaning, and exactly what Step 1 hands to Step 2 (for building and testing only; users never see this), start it in developer mode:
 
 ```bash
 streamlit run app.py -- --debug
@@ -128,6 +130,8 @@ The slow test uses the real reading model on the example screenshot (Ollama must
 ```bash
 pytest -m slow
 ```
+
+Every push to GitHub also runs the code-style checks (ruff) and the quick tests automatically, using GitHub Actions (`.github/workflows/tests.yml`). The badge at the top of this page shows whether the latest run passed.
 
 ---
 
