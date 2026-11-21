@@ -19,6 +19,10 @@ def test_first_name_alone_is_not_the_artist():
     assert not matches_artist("Taylor", "Taylor Swift")
 
 
+def test_a_longer_name_containing_the_artist_is_not_the_artist():
+    assert not matches_artist("Dave Smith", "Dave")
+
+
 # --- seller -----------------------------------------------------------------
 
 

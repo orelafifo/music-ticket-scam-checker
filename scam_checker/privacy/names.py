@@ -82,7 +82,7 @@ def redact_names(text: str, artist: str, name_finder: NameFinder) -> tuple[str, 
     names_to_replace = [
         span
         for span in _without_overlaps(name_finder.find_names(text))
-        if not should_keep_name(span.text, artist) and not _overlaps_any(span, artist_spans)
+        if not should_keep_name(span.text, artist) and not _inside_any(span, artist_spans)
     ]
     # Work from the end so earlier character positions stay correct.
     for span in reversed(names_to_replace):
@@ -98,9 +98,10 @@ def find_word(text: str, word: str) -> list[NameSpan]:
     return [NameSpan(m.start(), m.end(), m.group()) for m in re.finditer(pattern, text, re.IGNORECASE)]
 
 
-def _overlaps_any(span: NameSpan, others: list[NameSpan]) -> bool:
-    # Stops a first name alone ("Olivia") being removed from inside the artist's name ("Olivia Rodrigo").
-    return any(span.start < other.end and other.start < span.end for other in others)
+def _inside_any(span: NameSpan, others: list[NameSpan]) -> bool:
+    # Stops a first name alone ("Olivia") being removed from inside the artist's name ("Olivia Rodrigo"),
+    # while a longer name that only starts with the artist's ("Dave Smith") is still removed.
+    return any(other.start <= span.start and span.end <= other.end for other in others)
 
 
 def _without_overlaps(spans: list[NameSpan]) -> list[NameSpan]:

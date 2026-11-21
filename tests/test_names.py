@@ -34,6 +34,19 @@ def test_venue_mistaken_for_a_name_is_kept():
     assert cleaned == "2 tickets for Wembley"
 
 
+def test_seller_whose_full_name_contains_the_artist_is_removed():
+    text = "Hi I'm Dave Smith, selling 2 Dave tickets"
+    cleaned, removed = redact_names(text, "Dave", FakeNameFinder("Dave Smith", "Dave"))
+    assert cleaned == "Hi I'm [name], selling 2 Dave tickets"
+    assert removed == 1
+
+
+def test_seller_with_exactly_the_artists_name_is_kept_as_accepted_risk():
+    # Spelling alone can't tell seller "Dave" from artist "Dave"; documented as a leftover risk.
+    cleaned, _ = redact_names("Hi I'm Dave, selling Dave tickets", "Dave", FakeNameFinder("Dave"))
+    assert cleaned == "Hi I'm Dave, selling Dave tickets"
+
+
 def test_every_other_name_is_replaced():
     cleaned, removed = redact_names("Sarah Jones and Mike", "Dave", FakeNameFinder("Sarah Jones", "Mike"))
     assert cleaned == "[name] and [name]"

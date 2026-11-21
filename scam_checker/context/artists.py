@@ -29,13 +29,15 @@ def normalise_name(name: str) -> str:
 
 
 def matches_artist(candidate: str, artist: str) -> bool:
-    """True if the candidate is the artist's full name, allowing small spelling differences."""
+    """True if the candidate IS the artist's name, allowing small spelling differences.
+
+    A longer name that only contains the artist's ("Dave Smith" for the artist
+    "Dave") is a person, not the artist, so it does not match.
+    """
     candidate, artist = normalise_name(candidate), normalise_name(artist)
     if not candidate or not artist:
         return False
-    if candidate == artist or f" {artist} " in f" {candidate} ":
-        return True
-    return SequenceMatcher(None, candidate, artist).ratio() >= SIMILARITY_NEEDED
+    return candidate == artist or SequenceMatcher(None, candidate, artist).ratio() >= SIMILARITY_NEEDED
 
 
 def _strip_accents(text: str) -> str:
