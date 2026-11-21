@@ -53,3 +53,13 @@ def test_ai_finds_names_spacy_misses():
     cleaned, _ = redact_names(text, "Olivia Rodrigo", OllamaNameFinder())
     assert "Megan" not in cleaned and "jess" not in cleaned
     assert "Olivia Rodrigo" in cleaned and "The O2" in cleaned
+
+
+@pytest.mark.slow
+def test_ai_finds_group_chat_titles():
+    if not ollama_is_running():
+        pytest.skip("Ollama isn't running")
+    text = "Taylor Swift Eras Resale UK 🎟️\n~Megan: still got 2 for Wembley, PayPal friends and family only"
+    cleaned, _ = redact_names(text, "Taylor Swift", OllamaNameFinder())
+    assert "Eras Resale UK" not in cleaned and "Megan" not in cleaned
+    assert "Wembley" in cleaned and "PayPal" in cleaned

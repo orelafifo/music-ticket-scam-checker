@@ -11,13 +11,16 @@ Two finders run together and any name either one finds is removed:
 from __future__ import annotations
 
 import re
+from collections import Counter
 from dataclasses import dataclass
 from typing import Protocol
 
 from ..context.artists import matches_artist
 from .protected_words import contains_protected_word
 
-NAME_PLACEHOLDER = "[name]"
+PERSON = "name"
+CHAT_TITLE = "chat title"
+PLACEHOLDERS = {PERSON: "[name]", CHAT_TITLE: "[title]"}
 DEFAULT_SPACY_MODEL = "en_core_web_sm"
 
 
@@ -26,10 +29,11 @@ class NameSpan:
     start: int
     end: int
     text: str
+    kind: str = PERSON  # PERSON, or CHAT_TITLE for a group chat or channel name
 
 
 class NameFinder(Protocol):
-    """Anything that can find person names in text. Lets tests use a fake finder."""
+    """Anything that can find names (people, chat titles) in text. Lets tests use a fake finder."""
 
     def find_names(self, text: str) -> list[NameSpan]: ...
 
@@ -71,31 +75,34 @@ class CachedNameFinder:
         return self._results[text]
 
 
-def should_keep_name(name: str, artist: str) -> bool:
-    is_placeholder = "[" in name or "]" in name
-    return is_placeholder or matches_artist(name, artist) or contains_protected_word(name)
+def should_keep(span: NameSpan, artist: str) -> bool:
+    if "[" in span.text or "]" in span.text or matches_artist(span.text, artist):
+        return True
+    # A group called "Twickets resale UK" still identifies a group, so platform
+    # and payment words only save people's names that were mistaken for them.
+    return span.kind == PERSON and contains_protected_word(span.text)
 
 
-def redact_names(text: str, artist: str, name_finder: NameFinder) -> tuple[str, int]:
-    """Returns (text with names replaced, number of names replaced)."""
+def redact_names(text: str, artist: str, name_finder: NameFinder) -> tuple[str, Counter]:
+    """Returns (text with names and chat titles replaced, count per kind)."""
     artist_spans = find_word(text, artist)
-    names_to_replace = [
+    to_replace = [
         span
         for span in _without_overlaps(name_finder.find_names(text))
-        if not should_keep_name(span.text, artist) and not _inside_any(span, artist_spans)
+        if not should_keep(span, artist) and not _inside_any(span, artist_spans)
     ]
     # Work from the end so earlier character positions stay correct.
-    for span in reversed(names_to_replace):
-        text = text[: span.start] + NAME_PLACEHOLDER + text[span.end :]
-    return text, len(names_to_replace)
+    for span in reversed(to_replace):
+        text = text[: span.start] + PLACEHOLDERS[span.kind] + text[span.end :]
+    return text, Counter(span.kind for span in to_replace)
 
 
-def find_word(text: str, word: str) -> list[NameSpan]:
+def find_word(text: str, word: str, kind: str = PERSON) -> list[NameSpan]:
     """Every whole-word, case-insensitive occurrence of `word` in `text`."""
     if not word.strip():
         return []
     pattern = rf"(?<!\w){re.escape(word.strip())}(?!\w)"
-    return [NameSpan(m.start(), m.end(), m.group()) for m in re.finditer(pattern, text, re.IGNORECASE)]
+    return [NameSpan(m.start(), m.end(), m.group(), kind) for m in re.finditer(pattern, text, re.IGNORECASE)]
 
 
 def _inside_any(span: NameSpan, others: list[NameSpan]) -> bool:

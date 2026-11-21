@@ -32,9 +32,8 @@ def clean_lines(lines: list[str], artist: str, name_finder: NameFinder) -> Clean
     kept_lines = [line for line in (_clean_one_line(line, removed) for line in lines) if line]
     text, pattern_counts = redact_patterns("\n".join(kept_lines))
     removed.update(pattern_counts)
-    text, name_count = redact_names(text, artist, name_finder)
-    if name_count:
-        removed["name"] += name_count
+    text, redacted = redact_names(text, artist, name_finder)
+    removed.update(redacted)
     return CleaningReport(text, removed)
 
 
