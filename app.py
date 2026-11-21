@@ -212,7 +212,7 @@ def ask_number_or_not_available(column, label: str, key: str) -> int | None:
 
 def ask_about_seller_account() -> SellerAccount:
     st.subheader("6. About the seller's account")
-    st.caption("If the app doesn't show this, tick N/A.")
+    st.caption("If not shown or available, tick N/A.")
     left, right = st.columns(2)
     followers = ask_number_or_not_available(left, "Follower count", "followers")
     age_months = ask_number_or_not_available(right, "Account age (months)", "account-age")

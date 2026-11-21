@@ -41,7 +41,7 @@ def test_free_text_answer_becomes_a_category(answer, expected):
     assert KeywordSourceCategoriser().categorise(answer) == expected
 
 
-def test_unknown_website_quick_pick_and_example_are_sorted_as_a_website():
+def test_unknown_website_is_sorted_as_a_website():
     assert QUICK_PICKS["An unknown website"] == SellerSource.MARKETPLACE_OR_SITE
     assert KeywordSourceCategoriser().categorise("An unknown website") == SellerSource.MARKETPLACE_OR_SITE
 

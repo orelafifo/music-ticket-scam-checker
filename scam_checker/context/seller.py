@@ -31,7 +31,6 @@ QUICK_PICKS: dict[str, SellerSource] = {
 
 EXAMPLE_ANSWERS = [
     "A stranger joined an open group-chat link",
-    "An unknown website",
     "A post from someone I don't know on X",
 ]
 
