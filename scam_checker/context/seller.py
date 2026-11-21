@@ -24,14 +24,14 @@ class SellerSource(str, Enum):
 
 QUICK_PICKS: dict[str, SellerSource] = {
     "A stranger in a group chat": SellerSource.OPEN_GROUP_CHAT,
-    "A comment or reply on social media": SellerSource.RANDOM_COMMENT,
+    "An unknown website": SellerSource.MARKETPLACE_OR_SITE,
     "A post from someone I don't know": SellerSource.STRANGERS_POST,
     "Someone I know": SellerSource.KNOWN_PERSON,
 }
 
 EXAMPLE_ANSWERS = [
     "A stranger joined an open group-chat link",
-    "A random TikTok comment",
+    "An unknown website",
     "A post from someone I don't know on X",
 ]
 

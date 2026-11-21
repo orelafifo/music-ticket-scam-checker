@@ -1,7 +1,7 @@
 import pytest
 
 from scam_checker.context.artists import load_artist_suggestions, matches_artist
-from scam_checker.context.seller import KeywordSourceCategoriser, SellerAccount, SellerSource
+from scam_checker.context.seller import QUICK_PICKS, KeywordSourceCategoriser, SellerAccount, SellerSource
 
 # --- artist -----------------------------------------------------------------
 
@@ -39,6 +39,11 @@ def test_a_longer_name_containing_the_artist_is_not_the_artist():
 )
 def test_free_text_answer_becomes_a_category(answer, expected):
     assert KeywordSourceCategoriser().categorise(answer) == expected
+
+
+def test_unknown_website_quick_pick_and_example_are_sorted_as_a_website():
+    assert QUICK_PICKS["An unknown website"] == SellerSource.MARKETPLACE_OR_SITE
+    assert KeywordSourceCategoriser().categorise("An unknown website") == SellerSource.MARKETPLACE_OR_SITE
 
 
 def test_not_available_is_shown_as_unknown():
