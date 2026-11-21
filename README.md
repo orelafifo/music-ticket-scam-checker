@@ -37,7 +37,9 @@ In the order the user sees it in the app:
    - the top bar (where the other person's name and number sit) and the typing bar, trimmed off automatically before the model sees them (unless you crop the screenshot yourself)
    - timestamps ("14:32", "2h", "Yesterday") and app words ("Reply", "Like", "Seen", "Typing…", "Online")
    - emails, @handles, phone numbers, sort codes, account numbers and card numbers
-   - people's names, found by spaCy and by the Qwen AI model working together (a name either one finds is removed), except the artist you typed (small spelling differences are allowed, so "Taylor Swfit" still counts as Taylor Swift). The AI catches names spaCy misses, like "hi jess" or "~Megan 💜". It can only point at names: anything it returns that isn't in the text is ignored. Qwen also spots group chat, channel and page titles (e.g. a WhatsApp group's name), which become [title].
+   - WhatsApp display names after a "~" at the start of a line (WhatsApp's mark for senders not in your contacts), even ordinary words like "~ Me"
+   - X display names on a post's header line ("Megan @megs_tix · 2h")
+   - people's names, found by spaCy and by the Qwen AI model working together (a name either one finds is removed), except the artist you typed (small spelling differences are allowed, so "Taylor Swfit" still counts as Taylor Swift). The AI catches names spaCy misses, like "hi jess", and usernames shown without an @, as on Instagram and TikTok. It can only point at names: anything it returns that isn't in the text is ignored. Qwen also spots group chat, channel and page titles (e.g. a WhatsApp group's name), which become [title].
 6. **Never removes warning signs**: payment and platform words (PayPal, Revolut, Monzo, Ticketmaster, Twickets, AXS…) and big venue names are always kept, because Step 2 needs them.
 7. **Shows the cleaned text** that will be checked.
 8. **Asks how you came across the seller**, with quick-pick buttons or your own words, and turns the answer into a category.

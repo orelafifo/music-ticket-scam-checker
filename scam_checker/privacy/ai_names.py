@@ -20,7 +20,8 @@ from .names import CHAT_TITLE, PERSON, NameSpan, find_word
 # instructions written in a listing ("ignore your rules") are not obeyed.
 NAME_PROMPT = (
     "The text between <text> and </text> was copied from a screenshot of a ticket listing or chat. "
-    "List every name of a real person in it, such as sellers, buyers or people mentioned. "
+    "List every name of a real person in it, such as sellers, buyers or people mentioned, "
+    "including display names and usernames shown without an @, as on Instagram, TikTok or X. "
     "Separately, list the title of any group chat, community, channel or page shown in it. "
     "Do not list music artists, bands, venues, places, companies, apps, websites or payment services "
     "as names. "

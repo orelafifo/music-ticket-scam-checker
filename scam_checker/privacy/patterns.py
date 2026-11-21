@@ -17,6 +17,22 @@ class RedactionPattern:
 # Order matters: longer or more specific shapes go first, so an email isn't
 # half-removed as an @handle, and a card number isn't read as a phone number.
 REDACTION_PATTERNS = [
+    # WhatsApp shows a sender who isn't in your contacts as "~ Name" at the start
+    # of a line. Whatever follows the "~" is a display name, even an ordinary word
+    # like "Me", so it goes: up to a colon, else the whole short line, else one word.
+    RedactionPattern(
+        "name",
+        re.compile(r"^~\s?(?:[^:\n]{1,40}(?=:)|[^:\n]{1,40}$|\S+)", re.MULTILINE),
+        "~[name]",
+    ),
+    # X (Twitter) posts start with a header line: "Display Name @handle · 2h".
+    # The "·" after the handle marks it as a header, so a message that merely
+    # mentions someone ("DM me @megs_tix") keeps its words.
+    RedactionPattern(
+        "name",
+        re.compile(r"^(?![~\[])[^@\n]{1,40}?(?=\s@[A-Za-z0-9_]{2,30}\s*·)", re.MULTILINE),
+        "[name]",
+    ),
     RedactionPattern("email", re.compile(r"[\w.+-]+@[\w-]+\.[\w.-]+"), "[email]"),
     # Keep the payment service (a warning sign), remove the person's username.
     RedactionPattern(

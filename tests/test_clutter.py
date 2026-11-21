@@ -46,6 +46,10 @@ def test_payment_and_platform_words_kept():
     assert clean(text) == text
 
 
+def test_x_post_header_after_timestamp_removal():
+    assert clean("Megan 💜 @megs_tix · 2h\nSelling 2 for Wembley") == "[name] [handle] ·\nSelling 2 for Wembley"
+
+
 def test_report_counts_removals_without_keeping_values():
     report = clean_text("ring 07123 456789\nSeen", artist="Dave", name_finder=NO_NAMES)
     assert report.removed_counts == {"phone number": 1, "app word": 1}

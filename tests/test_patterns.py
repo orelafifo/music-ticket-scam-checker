@@ -22,6 +22,39 @@ def test_personal_details_are_removed(text, expected, kind):
     assert removed[kind] == 1
 
 
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        ("~ Me\nstill got the tickets", "~[name]\nstill got the tickets"),
+        ("~Megan 💜💖💜\nhey guys", "~[name]\nhey guys"),
+        ("~Oreoluwa: bank transfer only", "~[name]: bank transfer only"),
+        (
+            "~Zayba anyone want 2 Taylor Swift tickets for Wembley tonight",
+            "~[name] anyone want 2 Taylor Swift tickets for Wembley tonight",
+        ),
+    ],
+)
+def test_whatsapp_display_name_after_tilde_is_removed(text, expected):
+    cleaned, removed = redact_patterns(text)
+    assert cleaned == expected
+    assert removed["name"] == 1
+
+
+def test_x_post_header_display_name_is_removed():
+    cleaned, removed = redact_patterns("Megan 💜 @megs_tix · 2h\nSelling 2 for Wembley")
+    assert cleaned == "[name] [handle] · 2h\nSelling 2 for Wembley"
+    assert removed == {"name": 1, "handle": 1}
+
+
+def test_message_mentioning_a_handle_keeps_its_words():
+    cleaned, _ = redact_patterns("DM me @megs_tix for the tickets")
+    assert cleaned == "DM me [handle] for the tickets"
+
+
+def test_tilde_inside_a_line_is_left_alone():
+    assert redact_patterns("£80 each ~ish")[0] == "£80 each ~ish"
+
+
 def test_payment_link_keeps_the_service_but_hides_the_username():
     cleaned, _ = redact_patterns("send it to paypal.me/jessica123")
     assert cleaned == "send it to paypal.me/[handle]"

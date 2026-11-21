@@ -63,3 +63,25 @@ def test_ai_finds_group_chat_titles():
     cleaned, _ = redact_names(text, "Taylor Swift", OllamaNameFinder())
     assert "Eras Resale UK" not in cleaned and "Megan" not in cleaned
     assert "Wembley" in cleaned and "PayPal" in cleaned
+
+
+@pytest.mark.slow
+@pytest.mark.parametrize(
+    "text",
+    ["Hi I am Oreoluwa, still selling the tickets", "hi its orela, still got them?", "Thanks Zayba, sending now"],
+)
+def test_ai_finds_less_common_names(text):
+    if not ollama_is_running():
+        pytest.skip("Ollama isn't running")
+    cleaned, removed = redact_names(text, "Dave", OllamaNameFinder())
+    assert removed["name"] == 1, cleaned
+
+
+@pytest.mark.slow
+def test_ai_finds_usernames_shown_without_an_at_sign():
+    if not ollama_is_running():
+        pytest.skip("Ollama isn't running")
+    text = "megs.tix selling 2 for Wembley, dm me\nzayba_22 how much?"
+    cleaned, _ = redact_names(text, "Dave", OllamaNameFinder())
+    assert "megs.tix" not in cleaned and "zayba_22" not in cleaned
+    assert "Wembley" in cleaned
