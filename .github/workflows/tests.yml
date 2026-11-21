@@ -1,0 +1,32 @@
+# Runs the code-style checks and the quick tests on every push and pull request.
+# The slow tests need Ollama running locally, so they are skipped here
+# (pyproject.toml excludes them by default).
+name: Tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get the code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements-dev.txt
+
+      - name: Check code style (ruff)
+        run: |
+          ruff check .
+          ruff format --check .
+
+      - name: Run the quick tests
+        run: pytest
