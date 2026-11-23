@@ -81,6 +81,8 @@ def main() -> None:
         return
 
     asker = make_asker(args.model)
+    print("Warming up (loading the model into memory; not timed)...")
+    asker.ask(prompt_for("Warm-up: 1 ticket for sale."))  # the first call loads the model, which isn't fair to time
     new_file = not out_file.exists()
     seconds, tracker = [], start_energy_meter(args.model)
     with out_file.open("a", encoding="utf-8", newline="") as file:

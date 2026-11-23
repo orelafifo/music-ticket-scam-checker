@@ -14,3 +14,6 @@ venv/
 
 # Screenshots people upload while testing stay on your computer
 screenshots/
+
+# Energy log written by codecarbon (the numbers we use are in data/step2/run_*.json)
+emissions.csv
