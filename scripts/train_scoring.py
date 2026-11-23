@@ -39,6 +39,11 @@ def read_csv(path: Path) -> list[dict[str, str]]:
 
 def load_training_rows(answers_file: Path) -> tuple[list[dict[str, str]], list[int], list[str]]:
     practice = {row["id"]: row for row in read_csv(PRACTICE_FILE)}
+    if not answers_file.exists():
+        raise SystemExit(
+            f"No answers file yet: {answers_file}\n"
+            "The AI has to answer the questions for the practice examples first (Step 2, part 3)."
+        )
     answers = read_csv(answers_file)
     missing_columns = [q for q in QUESTION_IDS if q not in answers[0]]
     if missing_columns:

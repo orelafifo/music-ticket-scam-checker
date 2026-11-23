@@ -29,7 +29,7 @@ def made_up_answers(count: int = 120, seed: int = 1):
             "price_given": 0.3 if scam else 0.8,
             "official_transfer": 0.05 if scam else 0.5,
         }
-        rows.append({q: ("yes" if rng.random() < chance[q] else "no") for q in QUESTION_IDS})
+        rows.append({q: ("yes" if rng.random() < chance.get(q, 0.3) else "no") for q in QUESTION_IDS})
         labels.append(scam)
         groups.append(f"source{i % 30}")
     return rows, labels, groups
