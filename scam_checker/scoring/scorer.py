@@ -218,3 +218,20 @@ def train_scoring(
         wrong_direction=wrong_direction,
     )
     return model, report
+
+
+FALSE_ALARM_COSTS_TO_TRY_GBP = (10, 20, 50)
+
+
+def sensitivity_analysis(
+    answer_rows: list[dict[str, str]],
+    labels: list[int],
+    groups: list[str],
+    false_alarm_costs: tuple[float, ...] = FALSE_ALARM_COSTS_TO_TRY_GBP,
+) -> list[tuple[float, TrainingReport]]:
+    """Train the scoring once per false alarm cost, to show how the choice changes the results.
+
+    The cost of a false alarm has no published figure, so instead of guessing one
+    value, several are tried and the results compared. One is then picked, with a reason.
+    """
+    return [(cost, train_scoring(answer_rows, labels, groups, cost_false_alarm=cost)[1]) for cost in false_alarm_costs]

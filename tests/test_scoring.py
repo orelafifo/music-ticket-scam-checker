@@ -97,3 +97,12 @@ def test_save_and_load(tmp_path):
     path = tmp_path / "scoring.json"
     model.save(path)
     assert ScoringModel.load(path) == model
+
+
+def test_sensitivity_analysis_tries_each_cost():
+    from scam_checker.scoring.scorer import sensitivity_analysis
+
+    results = sensitivity_analysis(*made_up_answers(), false_alarm_costs=(10, 20, 50))
+    assert [cost for cost, _ in results] == [10, 20, 50]
+    levels = [report.warning_level for _, report in results]
+    assert levels == sorted(levels)  # dearer false alarms -> the checker warns less readily

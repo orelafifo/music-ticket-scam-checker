@@ -1,7 +1,13 @@
 """Train the Step 2 scoring step on one AI model's answers to the practice examples.
 
 Usage (after the AI has answered the questions for every practice example):
-    python scripts/train_scoring.py --answers data/step2/answers_qwen.csv --cost-false-alarm 20
+
+1. Sensitivity analysis first: tries a false alarm cost of £10, £20 and £50 and
+   prints how many scams are caught and how many false alarms there are for each:
+       python scripts/train_scoring.py --answers data/step2/answers_qwen.csv
+
+2. Then train and save the scoring with the cost you picked:
+       python scripts/train_scoring.py --answers data/step2/answers_qwen.csv --cost-false-alarm 20
 
 The answers file needs an `id` column (E001, E002, ... from practice_set.csv)
 and one column per question, each holding yes / no / unclear.
@@ -20,7 +26,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from scam_checker.scoring.questions import QUESTION_IDS  # noqa: E402
-from scam_checker.scoring.scorer import COST_FALSE_ALARM_GBP, train_scoring  # noqa: E402
+from scam_checker.scoring.scorer import COST_FALSE_ALARM_GBP, sensitivity_analysis, train_scoring  # noqa: E402
 
 PRACTICE_FILE = Path("data/step2/practice_set.csv")
 LOCKED_TEST_FILE = Path("data/step2/locked_test_set.csv")
@@ -50,16 +56,27 @@ def load_training_rows(answers_file: Path) -> tuple[list[dict[str, str]], list[i
     return answers, labels, groups
 
 
+def print_sensitivity_analysis(rows, labels, groups) -> None:
+    print("Sensitivity analysis: how the false alarm cost changes the results (cross-validated)")
+    print("False alarm cost | Warning level | Scams caught | False alarms | Cost per check")
+    for cost, report in sensitivity_analysis(rows, labels, groups):
+        print(
+            f"£{cost:<15g} | {report.warning_level:<13} | {report.scams_caught}/{report.scams_total:<10} "
+            f"| {report.false_alarms}/{report.genuine_total:<10} | £{report.expected_cost_per_check_gbp}"
+        )
+    print("Pick one, write down why, then run again with --cost-false-alarm <your choice> to save the scoring.")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--answers", type=Path, required=True)
     parser.add_argument("--cost-false-alarm", type=float, default=COST_FALSE_ALARM_GBP)
     parser.add_argument("--out", type=Path, default=None)
     args = parser.parse_args()
-    if args.cost_false_alarm is None:
-        raise SystemExit("Decide the cost of a false alarm first, e.g. --cost-false-alarm 20")
-
     rows, labels, groups = load_training_rows(args.answers)
+    if args.cost_false_alarm is None:
+        print_sensitivity_analysis(rows, labels, groups)
+        return
     out = args.out or Path("models") / f"scoring_{args.answers.stem.removeprefix('answers_')}.json"
     model, report = train_scoring(rows, labels, groups, args.cost_false_alarm, trained_on=str(args.answers))
     model.save(out)
