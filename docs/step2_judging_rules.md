@@ -12,7 +12,7 @@ Written 23 Nov 2026, **before any testing**. These rules must not be changed aft
 ## Test data
 - `data/step2/practice_set.csv` (160 examples: 80 scams, 80 genuine).
 - The locked test set is **not** used here.
-- Gemini gets public examples only. The 3 examples from private WhatsApp group chats are left out for Gemini, and its results are reported on the remaining 157.
+- All 3 models get the same 157 examples (77 scams, 80 genuine). The 3 examples from private WhatsApp group chats are left out for every model, so Gemini never sees them and the comparison is equal. They are used later, when improving the winning model.
 
 ## Keeping it fair
 - Every model gets the same prompt, the same yes/no questions and the same examples.
@@ -27,7 +27,7 @@ Written 23 Nov 2026, **before any testing**. These rules must not be changed aft
 ## What is measured
 | # | Measure | What it means | How it is reported |
 |---|---|---|---|
-| 1 | **Scams caught** | Out of 80 scams, how many were flagged | Number and % |
+| 1 | **Scams caught** | Out of 77 scams, how many were flagged | Number and % |
 | 2 | **False alarms** | Out of 80 genuine posts, how many were wrongly flagged | Number and % |
 | 3 | **Valid answers** | How often the model replied in the right format (all questions answered yes/no) | % of examples |
 | 4 | **Speed per check** | Seconds for one example | Typical time (p50: half of checks are faster than this) and slow-case time (p95: 95% of checks are faster than this). Not an average, because a few very slow checks would hide the usual time |
@@ -40,14 +40,15 @@ Only the two local models can win.
 
 1. A model must give **valid answers at least 95% of the time**. Otherwise it is out.
 2. The model that **catches more scams** wins.
-3. If they are within 2 scams of each other (too close to call with 80 scams), the one with **fewer false alarms** wins.
+3. If they are within 2 scams of each other (too close to call with 77 scams), the one with **fewer false alarms** wins.
 4. If still within 2, the one with the **faster slow-case time (p95)** wins.
 5. If still tied, the one that **uses less energy** wins.
 
 Gemini's results are reported next to them, to show how much is gained or lost by staying local.
 
 ## Small-sample warning
-With 80 scams, one example is about 1.3 percentage points. Differences of 1–2 examples are within chance. Report numbers as "x out of 80", not only as %.
+With 77 scams, one example is about 1.3 percentage points. Differences of 1–2 examples are within chance. Report numbers as "x out of 77", not only as %.
 
 ## Changes after this date
 - 23 Nov 2026 (before any testing): dropped the temporary "2 or more yes = scam" rule. Models are now compared after each has its own trained scoring step.
+- 23 Nov 2026 (before any testing): all 3 models are compared on the same 157 examples (the 3 private WhatsApp examples are left out for every model, not only for Gemini).

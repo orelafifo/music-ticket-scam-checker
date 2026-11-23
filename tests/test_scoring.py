@@ -82,13 +82,13 @@ def test_expensive_misses_lower_the_warning_level():
 
 
 def test_cost_formula():
-    # 5% scams; miss half of them (£215 each); 10% false alarms on the rest (£20 each)
-    assert expected_cost_per_check(0.5, 0.1, 215, 20, 0.05) == pytest.approx(0.05 * 0.5 * 215 + 0.95 * 0.1 * 20)
+    # 5% scams; miss half of them (£432 each); 10% false alarms on the rest (£20 each)
+    assert expected_cost_per_check(0.5, 0.1, 432, 20, 0.05) == pytest.approx(0.05 * 0.5 * 432 + 0.95 * 0.1 * 20)
 
 
 def test_choose_level_perfect_split():
     probabilities = np.array([0.1, 0.2, 0.8, 0.9])
-    level, cost = choose_warning_level(probabilities, np.array([0, 0, 1, 1]), 215, 20)
+    level, cost = choose_warning_level(probabilities, np.array([0, 0, 1, 1]), 432, 20)
     assert 0.2 < level <= 0.8 and cost == 0
 
 

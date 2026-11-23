@@ -31,7 +31,10 @@ from .questions import QUESTIONS, Direction, Question, find_question
 from .step1_signals import Step1Signals
 
 # Costs used to choose the warning level.
-COST_MISSED_SCAM_GBP = 215  # average loss per concert ticket scam (Lloyds, see report log)
+# Average loss per music gig ticket fraud report: £1.6m lost across ~3,700 reports to
+# Action Fraud in 2024 (GOV.UK, 2025), so £1.6m / 3,700 = about £432. Chosen by Orela, 23 Nov 2026.
+# https://www.gov.uk/government/news/16m-lost-to-gig-ticket-scams-as-public-urged-to-take-caution
+COST_MISSED_SCAM_GBP = 432
 COST_FALSE_ALARM_GBP: float | None = None  # NOT DECIDED YET: Orela chooses this before training
 REAL_WORLD_SCAM_RATE = 0.05  # assumed share of checked listings that are scams (5%)
 

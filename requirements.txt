@@ -15,3 +15,5 @@ en_core_web_sm @ https://github.com/explosion/spacy-models/releases/download/en_
 scikit-learn>=1.5
 python-dateutil          # reading dates in listings (event check)
 numpy
+codecarbon               # measures energy per check when comparing the AI models
+matplotlib               # charts comparing the AI models (PNG for the report)
