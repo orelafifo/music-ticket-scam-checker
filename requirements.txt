@@ -10,3 +10,8 @@ spacy>=3.8,<3.9
 en_core_web_sm @ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl
 
 # Reading screenshots needs the Ollama app (not a Python package): see the README.
+
+# Step 2: the scoring step (logistic regression)
+scikit-learn>=1.5
+python-dateutil          # reading dates in listings (event check)
+numpy

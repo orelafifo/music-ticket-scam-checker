@@ -9,6 +9,7 @@ It does not give a scam verdict yet; that arrives in Step 2.
 from __future__ import annotations
 
 import sys
+from datetime import date
 
 import streamlit as st
 from dotenv import load_dotenv
@@ -16,6 +17,9 @@ from PIL import Image
 
 from scam_checker.context import website_records
 from scam_checker.context.artists import load_artist_suggestions
+from scam_checker.context.event_check import EventReport
+from scam_checker.context.event_check import check_event as look_up_event
+from scam_checker.context.event_details import read_event_details
 from scam_checker.context.link_check import LinkReport, WebsiteLookups, check_link
 from scam_checker.context.seller import (
     EXAMPLE_ANSWERS,
@@ -189,6 +193,35 @@ def show_cleaned_text(report: CleaningReport) -> str:
     return report.cleaned_text
 
 
+@st.cache_data(show_spinner="Checking the event...", ttl=3600)
+def cached_event_check(artist: str, venue: str, event_date_iso: str) -> EventReport:
+    # Only the artist's name (and the month, for Skiddle) is sent, never the listing.
+    return look_up_event(artist, venue, date.fromisoformat(event_date_iso) if event_date_iso else None)
+
+
+def check_event(artist: str, cleaned_text: str) -> EventReport:
+    """Reads the venue and date from the listing and checks them. No extra step for the user."""
+    details = read_event_details(cleaned_text)
+    event_date = details.event_date.isoformat() if details.event_date else ""
+    report = cached_event_check(artist, details.venue, event_date)
+    show_event_result(report)
+    return report
+
+
+def show_event_result(report: EventReport) -> None:
+    if report.mismatch:
+        official = ", ".join(x for x in (report.official_venue, report.official_date) if x)
+        st.error(f"Event check: this doesn't match the official event. The closest official date is {official}.")
+    elif report.found:
+        st.success(f"✓ Event confirmed: {report.official_venue}, {report.official_date}")
+        if report.before_on_sale:
+            st.warning("These tickets are offered before the official general sale.")
+    else:
+        st.caption("Event check: we couldn't confirm this event (it may not be listed on Ticketmaster or Skiddle).")
+    if "Skiddle" in report.source:
+        st.caption("Event data from Skiddle.")
+
+
 def ask_how_seller_was_found() -> tuple[str, SellerSource]:
     st.subheader("5. How did you come across this seller?")
     quick_pick = st.pills("Quick pick", list(QUICK_PICKS))
@@ -265,6 +298,7 @@ def main() -> None:
     if screenshot_result is None:
         return
     final_text, report = screenshot_result
+    event = check_event(artist, final_text)
     seller_answer, seller_source = ask_how_seller_was_found()
     show_developer_view(
         Step1Result(
@@ -276,6 +310,7 @@ def main() -> None:
             seller_source_answer=seller_answer,
             seller_source=seller_source,
             seller_account=ask_about_seller_account(),
+            event=event,
         )
     )
 

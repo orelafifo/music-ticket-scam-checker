@@ -10,6 +10,7 @@ from dataclasses import asdict, dataclass, field
 
 from PIL import Image
 
+from .context.event_check import EventReport
 from .context.link_check import LinkReport
 from .context.seller import SellerAccount, SellerSource
 from .privacy.cleaner import CleaningReport, clean_lines
@@ -49,6 +50,7 @@ class Step1Result:
     seller_source_answer: str = ""
     seller_source: SellerSource = SellerSource.UNKNOWN
     seller_account: SellerAccount = field(default_factory=SellerAccount)
+    event: EventReport | None = None
 
     def to_dict(self) -> dict:
         result = asdict(self)
