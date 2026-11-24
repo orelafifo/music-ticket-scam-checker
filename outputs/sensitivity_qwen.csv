@@ -1,0 +1,4 @@
+false_alarm_cost_gbp,warning_level,scams_caught,scams_total,false_alarms,genuine_total,cost_per_check_gbp
+10,0.42,62,77,16,80,6.11
+20,0.42,62,77,16,80,8.01
+50,0.65,47,77,5,80,11.38
