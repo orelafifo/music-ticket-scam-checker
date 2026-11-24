@@ -6,7 +6,7 @@ Made 23 Nov 2026 from the old v2 project data (`~/Documents/ticket_scam_checker/
 | File | Rows | What |
 |---|---|---|
 | `all_200_examples.csv` | 200 | Everything, with a `set` column (practice or test) |
-| `practice_set.csv` | 160 | Use this to compare the 3 LLMs and to build the scoring |
+| `practice_set.csv` | 160 | Use this to compare the 2 AI models and to build the scoring (the comparison uses 157: the 3 private WhatsApp examples are kept for improving the winner) |
 | `locked_test_set.csv` | 40 | **Do not open until the final test** |
 
 ## Tags (`tag` column)

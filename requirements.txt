@@ -3,9 +3,10 @@ streamlit>=1.50          # the web app (needs selectbox "accept_new_options" and
 streamlit-cropper>=0.3   # drag-a-box cropping
 pillow>=10               # opening, cropping and shrinking images
 requests                 # talking to Ollama, and the website checks
-python-dotenv            # reads the optional Google key from .env
+python-dotenv            # reads the optional keys from .env (Google, Ticketmaster, Skiddle)
 
-# Step 1: finding names
+# Step 1: finding names, and reading dates for the event check
+python-dateutil
 spacy>=3.8,<3.9
 en_core_web_sm @ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl
 
@@ -13,7 +14,6 @@ en_core_web_sm @ https://github.com/explosion/spacy-models/releases/download/en_
 
 # Step 2: the scoring step (logistic regression)
 scikit-learn>=1.5
-python-dateutil          # reading dates in listings (event check)
 numpy
 codecarbon               # measures energy per check when comparing the AI models
 matplotlib               # charts comparing the AI models (PNG for the report)

@@ -5,11 +5,8 @@
 A prototype that checks screenshots of music ticket listings and chats for signs of a scam.
 It is designed to sit inside a banking app, so people can check before they pay a stranger for tickets.
 
-> **Status: Step 1 of 3 is built.** The app reads a screenshot, removes personal details and
-> collects some context. It does **not** say "scam" or "not scam" yet; that is Step 2.
-
-The earlier versions (v1 to v2.7) are archived at
-[orelafifo/ticket-scam-checker](https://github.com/orelafifo/ticket-scam-checker).
+> **Status:** Step 1 is built and in the app. Step 2 (questions and scoring) is built and being
+> tested; the app does not show a verdict yet.
 
 ---
 
@@ -18,8 +15,8 @@ The earlier versions (v1 to v2.7) are archived at
 | Step | What happens | Status |
 |---|---|---|
 | **1. Read and clean** | Read the text in the screenshot on this computer, then remove names, numbers, timestamps and app clutter | ✅ Built |
-| 2. Ask questions | A small AI model running on this computer answers fixed yes/no questions, e.g. "Does it ask for a bank transfer?" | Not started |
-| 3. Score | A simple scoring step turns the answers into a verdict with reasons | Not started |
+| 2. Ask questions | A small AI model on this computer answers 20 fixed yes/no questions, e.g. "Does it ask for a bank transfer?" | Built, being tested |
+| 3. Score | Logistic regression turns the answers, plus the Step 1 answers, into a verdict with reasons | Built, not in the app yet |
 
 The AI model only *reads* the text. It never makes the final decision.
 
@@ -42,8 +39,9 @@ In the order the user sees it in the app:
    - people's names, found by spaCy and by the Qwen AI model working together (a name either one finds is removed), except the artist you typed (small spelling differences are allowed, so "Taylor Swfit" still counts as Taylor Swift). The AI catches names spaCy misses, like "hi jess", and usernames shown without an @, as on Instagram and TikTok. It can only point at names: anything it returns that isn't in the text is ignored. Qwen also spots group chat, channel and page titles (e.g. a WhatsApp group's name), which become [title].
 6. **Never removes warning signs**: payment and platform words (PayPal, Revolut, Monzo, Ticketmaster, Twickets, AXS…) and big venue names are always kept, because Step 2 needs them.
 7. **Shows the cleaned text** that will be checked.
-8. **Asks how you came across the seller**, with quick-pick buttons or your own words, and turns the answer into a category.
-9. **Asks for the seller's follower count and account age**, with an N/A option. N/A means "unknown", never "suspicious".
+8. **Checks the event** in the background: reads the venue and date from the listing and looks them up on Ticketmaster and Skiddle, then shows a one-line confirmation. A mismatch is always a warning; "couldn't check" never counts against the seller.
+9. **Asks how you came across the seller**, with quick-pick buttons or your own words, and turns the answer into a category.
+10. **Asks for the seller's follower count and account age**, with an N/A option. N/A means "unknown", never "suspicious".
 
 ### Website check (the link is never opened)
 
@@ -87,21 +85,32 @@ pip install -r requirements-dev.txt
 
 Install **Ollama**, the free app that runs the reading model on your computer: download it from [ollama.com](https://ollama.com), open it, and it will sit in your menu bar.
 
-Then download the reading model (about 3 GB, once):
+Then download the models (once): the reading model (about 3 GB) and the Step 2 model (about 4 GB):
 
 ```bash
 ollama pull qwen2.5vl:3b
 ```
 
+```bash
+ollama pull qwen3.5:4b
+```
+
 Ollama needs to be open whenever you use the app.
 
-### Optional: Google's scam list
+### Optional: keys in `.env`
+
+Copy `.env.example` to a new file called `.env` and add any keys you have. The app works without them; the matching check just says "not checked".
+
+- `TICKETMASTER_API_KEY`, `SKIDDLE_API_KEY`: free keys for the event check ([developer.ticketmaster.com](https://developer.ticketmaster.com), [skiddle.com/api/join.php](https://www.skiddle.com/api/join.php))
+- `GOOGLE_SAFE_BROWSING_KEY`: Google's scam list, see below
+
+#### Google's scam list
 
 The website check can also ask Google Safe Browsing whether a site is a known scam. It needs a free key:
 
 1. Go to [console.cloud.google.com](https://console.cloud.google.com), create a project and turn on the **Safe Browsing API**.
 2. Under **APIs & Services → Credentials**, create an **API key**.
-3. In this folder, copy `.env.example` to a new file called `.env` and paste your key after `GOOGLE_SAFE_BROWSING_KEY=`.
+3. Paste it into `.env` after `GOOGLE_SAFE_BROWSING_KEY=`.
 
 The `.env` file is never uploaded to GitHub. Google's free key is for non-commercial use; a bank would use Google's paid version (Web Risk).
 
@@ -118,6 +127,18 @@ To also see what the model read before cleaning, and exactly what Step 1 hands t
 ```bash
 streamlit run app.py -- --debug
 ```
+
+## Step 2: compare the AI models
+
+Run in this order (Ollama open). Each script explains itself with `--help`.
+
+```bash
+python scripts/run_ai_answers.py --model qwen      # then --model qwen25
+python scripts/train_scoring.py --answers data/step2/answers_qwen.csv   # sensitivity table
+python scripts/compare_models.py                   # charts and winner in outputs/
+```
+
+The rules for picking the winner were written before testing: [`docs/step2_judging_rules.md`](docs/step2_judging_rules.md).
 
 ## Run the tests
 
@@ -161,16 +182,25 @@ scam_checker/
     website_records.py         Public-record lookups: registration date, certificates, Google's scam list
     known_sites.py             Known ticket, resale and social sites, and risky address endings
     seller.py                  How you met the seller, followers and account age
+    event_details.py           Reads the venue and date from the listing
+    event_check.py             Checks them on Ticketmaster and Skiddle
+  scoring/                     Step 2
+    questions.py               The 20 yes/no questions, each with a source
+    ask_ai.py                  Asks the AI model the questions
+    step1_signals.py           Points for the Step 1 answers (fixed, from evidence)
+    scorer.py                  Logistic regression, warning level by cost, reasons
+    compare.py                 Picks the winning model using the judging rules
 data/artist_suggestions.txt    Artists suggested while typing (add more any time)
+data/step2/                    200 tagged examples: practice set, locked test set, AI answers
 examples/                      A made-up screenshot for demos and tests
-scripts/                       Make the example screenshot and the before/after evidence
-docs/redaction_example.md      Before-and-after removal example (for the privacy section)
+scripts/                       Example screenshot, evidence, and the Step 2 scripts
+docs/                          Removal example, Step 2 questions, Step 1 points, judging rules
 tests/                         Automatic tests
 ```
 
 ## Privacy by design
 
-- **Text is read on this computer.** No screenshot or text is sent to an online service in Step 1.
+- **Text is read on this computer.** No screenshot or listing text is sent online. Only the artist's name (and the month) goes to Ticketmaster and Skiddle for the event check.
 - **Removal happens straight after reading,** inside one function, so the uncleaned text is never shown or saved.
 - **The app only counts what it removed** ("1 × phone number"). It never keeps the removed details.
 - **Remembered reading results belong to one visitor only.** If the app is put online, one person's screenshot is never kept where another visitor could reach it.
