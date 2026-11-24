@@ -52,3 +52,4 @@ With 77 scams, one example is about 1.3 percentage points. Differences of 1–2 
 ## Changes after this date
 - 23 Nov 2026 (before any testing): dropped the temporary "2 or more yes = scam" rule. Models are now compared after each has its own trained scoring step.
 - 23 Nov 2026 (before any testing): all 3 models are compared on the same 157 examples (the 3 private WhatsApp examples are left out for every model, not only for Gemini).
+- 24 Nov 2026 (after the Qwen run, before any scam-caught or false-alarm results were looked at): Gemma 4 E4B dropped. It needed 8.8 GiB of memory and the test MacBook Air had 4.8 GiB free (Ollama: "model requires 8.8 GiB but only 4.8 GiB are available"). The comparison is now Qwen3.5 4B (local, can win) against Gemini Flash (cloud, benchmark only). Qwen still has to pass rule 1 (at least 95% valid answers).

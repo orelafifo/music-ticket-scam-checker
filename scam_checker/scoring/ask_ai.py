@@ -103,7 +103,8 @@ class OllamaAsker:
             response = self._post(f"{OLLAMA_URL}/api/chat", json=body, timeout=TIMEOUT_SECONDS)
         if response.status_code == 404:
             raise RuntimeError(f"Model not downloaded. In the terminal run: ollama pull {self.model}")
-        response.raise_for_status()
+        if response.status_code >= 400:
+            raise RuntimeError(f"Ollama couldn't run {self.model}: {response.text.strip()}")
         return response.json()["message"]["content"]
 
 
