@@ -26,7 +26,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from scam_checker.scoring.questions import QUESTION_IDS  # noqa: E402
+from scam_checker.scoring.questions import questions_answered  # noqa: E402
 from scam_checker.scoring.scorer import COST_FALSE_ALARM_GBP, sensitivity_analysis, train_scoring  # noqa: E402
 
 PRACTICE_FILE = Path("data/step2/practice_set.csv")
@@ -45,10 +45,10 @@ def load_training_rows(answers_file: Path) -> tuple[list[dict[str, str]], list[i
             f"No answers file yet: {answers_file}\n"
             "The AI has to answer the questions for the practice examples first (Step 2, part 3)."
         )
-    answers = read_csv(answers_file)
-    missing_columns = [q for q in QUESTION_IDS if q not in answers[0]]
-    if missing_columns:
-        raise SystemExit(f"The answers file is missing these questions: {', '.join(missing_columns)}")
+    answers = [row for row in read_csv(answers_file) if practice.get(row["id"], {}).get("music_event", "yes") == "yes"]
+    # Music events only: answers for football, rugby, cricket, comedy or theatre examples are left out.
+    if not questions_answered(answers[0]):
+        raise SystemExit(f"No question columns found in {answers_file}")
     if LOCKED_TEST_FILE.exists():
         locked_ids = {row["id"] for row in read_csv(LOCKED_TEST_FILE)}
         leaked = sorted(row["id"] for row in answers if row["id"] in locked_ids)
@@ -62,12 +62,12 @@ def load_training_rows(answers_file: Path) -> tuple[list[dict[str, str]], list[i
     return answers, labels, groups
 
 
-DISPLAY_NAMES = {"qwen": "Qwen3.5 4B", "qwen25": "Qwen2.5-VL 3B"}
+DISPLAY_NAMES = {"qwen": "Qwen3.5 4B", "qwen25": "Qwen2.5-VL 3B", "qwen_v2": "Qwen3.5 4B, prompt version 2"}
 OUT = Path("outputs")
 
 
 def print_sensitivity_analysis(rows, labels, groups, model_key: str) -> None:
-    results = sensitivity_analysis(rows, labels, groups)
+    results = sensitivity_analysis(rows, labels, groups, questions=questions_answered(rows[0]))
     print("Sensitivity analysis: how the false alarm cost changes the results (cross-validated)")
     print("False alarm cost | Warning level | Scams caught | False alarms | Cost per check")
     for cost, report in results:
@@ -131,7 +131,7 @@ def save_sensitivity_chart(results, model_key: str) -> Path:
     ax.tick_params(colors=muted, labelsize=9, length=0)
     handles = [plt.Rectangle((0, 0), 1, 1, color=c) for c in (caught_colour, alarm_colour)]
     ax.legend(handles, ["Scams caught", "False alarms"], frameon=False, fontsize=8.5, loc="upper right", ncol=2)
-    fig.text(0.01, 0.01, "Cross-validated on the same 157 practice examples.", fontsize=8, color=muted)
+    fig.text(0.01, 0.01, "Cross-validated on the same 143 music practice examples.", fontsize=8, color=muted)
     fig.tight_layout(rect=(0, 0.04, 1, 1))
     path = OUT / f"sensitivity_{model_key}.png"
     fig.savefig(path, dpi=200, facecolor=surface)
@@ -150,7 +150,9 @@ def main() -> None:
         print_sensitivity_analysis(rows, labels, groups, args.answers.stem.removeprefix("answers_"))
         return
     out = args.out or Path("models") / f"scoring_{args.answers.stem.removeprefix('answers_')}.json"
-    model, report = train_scoring(rows, labels, groups, args.cost_false_alarm, trained_on=str(args.answers))
+    model, report = train_scoring(
+        rows, labels, groups, args.cost_false_alarm, questions=questions_answered(rows[0]), trained_on=str(args.answers)
+    )
     model.save(out)
 
     print(f"Saved: {out}")

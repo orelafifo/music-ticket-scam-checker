@@ -41,7 +41,7 @@ def test_only_yes_counts():
 
 def test_every_question_has_a_reason_and_direction():
     for question in QUESTIONS:
-        assert question.reason and question.text.endswith("?")
+        assert question.reason and "?" in question.text
         assert isinstance(question.direction, Direction)
     assert len(set(QUESTION_IDS)) == len(QUESTION_IDS)
 

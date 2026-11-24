@@ -66,3 +66,20 @@ def test_ollama_retries_without_thinking_switch():
 
     assert OllamaAsker("qwen2.5vl:3b", post=post).ask("hi") == '{"bank_transfer": "no"}'
     assert "think" in calls[0] and "think" not in calls[1]
+
+
+def test_prompt_version_1_is_kept_and_version_2_adds_examples():
+    from scam_checker.scoring.ask_ai import EXAMPLES, V1_QUESTIONS
+
+    v1, v2 = prompt_for("2 tickets", version=1), prompt_for("2 tickets", version=2)
+    assert "- Listing:" not in v1 and '"clear_details"' not in v1
+    assert len(V1_QUESTIONS) == 20 and v1.count('": ') >= 20
+    assert v2.count("- Listing:") == len(EXAMPLES) == 7
+    assert '"clear_details"' in v2
+
+
+def test_example_answers_only_use_real_question_ids():
+    from scam_checker.scoring.ask_ai import EXAMPLES
+
+    for _, yes in EXAMPLES:
+        assert set(yes) <= set(QUESTION_IDS)

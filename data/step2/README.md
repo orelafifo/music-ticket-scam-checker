@@ -6,7 +6,7 @@ Made 23 Nov 2026 from the old v2 project data (`~/Documents/ticket_scam_checker/
 | File | Rows | What |
 |---|---|---|
 | `all_200_examples.csv` | 200 | Everything, with a `set` column (practice or test) |
-| `practice_set.csv` | 160 | Use this to compare the 2 AI models and to build the scoring (the comparison uses 157: the 3 private WhatsApp examples are kept for improving the winner) |
+| `practice_set.csv` | 160 | Use this to compare the 2 AI models and to build the scoring (music events only: 143 examples) |
 | `locked_test_set.csv` | 40 | **Do not open until the final test** |
 
 ## Tags (`tag` column)
@@ -24,7 +24,7 @@ Made 23 Nov 2026 from the old v2 project data (`~/Documents/ticket_scam_checker/
 ## How the 200 were chosen
 - All 99 real word-for-word examples are included.
 - 68 rebuilt scams and 33 written genuine posts were picked at random (seed 2026), music events only.
-- 9 real examples are not music events (football or theatre). They are marked `music_event = no` and are all in the practice set.
+- 14 practice examples are not music events (football, rugby, cricket, comedy, theatre). They are marked `music_event = no` and left out of every comparison and score (5 were added to that list on 24 Nov 2026). The model comparison uses the 143 music examples (74 scams, 69 genuine), leaving out the 3 private WhatsApp examples too.
 
 ## How the test set was chosen (20 scams + 20 genuine)
 - **Only examples that v2.5 and v2.6 never learned from or were shaped by**: blind test #4, blind test #5 (with its spare genuine posts) and the v2.7 new rows. This keeps the final v3 vs v2.5 vs v2.6 test fair.
@@ -54,8 +54,8 @@ Made 23 Nov 2026 from the old v2 project data (`~/Documents/ticket_scam_checker/
 
 ## Fingerprints (sha256)
 - `locked_test_set.csv`: `9a6727a9658494cc1469bdf1163a707ff2c73026c1a5b0fb5129c07ffec9fd92`
-- `practice_set.csv`: `d499ad7b3a7642ebecfd689b548f64b328ef42197edec693b30bf13685bfba4c`
-- `all_200_examples.csv`: `e32c97ceaad274414fe72a70f89673b416cc9a3829cf779284e1e5253f06f1fc`
+- `practice_set.csv`: `db3a8ed3885e72ab9f0611ffb9ed4a4491bc880f93ea2c6760ef28f4a1139fde` (updated 24 Nov 2026: 5 rows re-marked as not music)
+- `all_200_examples.csv`: `17ebd189f23aca4fb5f06126fd3e2c25481339c9a09131300f157e2e74307d50` (updated 24 Nov 2026, same change)
 
 Check before the final test with: `shasum -a 256 data/step2/locked_test_set.csv`
 

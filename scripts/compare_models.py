@@ -34,7 +34,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 
 from scam_checker.scoring.compare import ModelResult, pick_winner  # noqa: E402
-from scam_checker.scoring.questions import find_question  # noqa: E402
+from scam_checker.scoring.questions import find_question, questions_answered  # noqa: E402
 from scam_checker.scoring.scorer import ScoringModel, train_scoring  # noqa: E402
 from scripts.train_scoring import load_training_rows  # noqa: E402
 
@@ -55,7 +55,9 @@ def load_result(key: str) -> tuple[ModelResult, ScoringModel] | None:
         return None
     summary, saved = json.loads(summary_file.read_text()), ScoringModel.load(scoring_file)
     rows, labels, groups = load_training_rows(answers)
-    _, report = train_scoring(rows, labels, groups, cost_false_alarm=saved.costs["false_alarm_gbp"])
+    _, report = train_scoring(
+        rows, labels, groups, cost_false_alarm=saved.costs["false_alarm_gbp"], questions=questions_answered(rows[0])
+    )
     energy = summary.get("energy_kwh_per_check")
     return (
         ModelResult(
@@ -115,9 +117,9 @@ def new_chart():
 
 
 def comparison_charts(results: dict[str, ModelResult]) -> list[Path]:
-    """Four separate PNGs, one per measure, all on the same 157 examples."""
+    """Four separate PNGs, one per measure, all on the same 143 music examples."""
     keys, rows = list(results), list(results.values())
-    cv_note = "Same 157 practice examples for every model. Cross-validated."
+    cv_note = "Same 143 music practice examples for every model. Cross-validated."
     paths = []
 
     fig, ax = new_chart()
@@ -215,7 +217,7 @@ def combined_chart(results: dict[str, ModelResult]) -> Path:
     else:
         axes[1][1].axis("off")
     fig.suptitle(
-        "Qwen3.5 4B vs Qwen2.5-VL 3B on the same 157 practice examples", x=0.02, ha="left", fontsize=13, color=INK
+        "Qwen3.5 4B vs Qwen2.5-VL 3B on the same 143 music practice examples", x=0.02, ha="left", fontsize=13, color=INK
     )
     return save(
         fig,

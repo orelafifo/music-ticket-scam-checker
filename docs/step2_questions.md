@@ -35,3 +35,25 @@ Things Step 1 already covers are **not** repeated here (where the tickets were f
 ## Decisions
 - [x] Approved by Orela, 23 Nov 2026. Question 18 ("100% legit") dropped: no source.
 - [ ] Replace the 3 weaker sources (3, 7, 16) if better UK ones turn up
+
+## Prompt version 2 (context engineering, 24 Nov 2026)
+Changes made after the first comparison, to cut false alarms and catch fake 'official' messages. They fix what the AI misread in the text; things Step 1 covers (where the tickets were found, how you met the seller, website and event checks) are left to Step 1. Version 1 is kept in the code (`V1_QUESTIONS`) so it can be re-run.
+
+| Question | Change |
+|---|---|
+| Sad story (10) | Only an emotional or dramatic story used to gain trust or hurry you; a plain "can't go any more" is no |
+| Official transfer (18) | Yes if they mention transferring through Ticketmaster, AXS, DICE, See Tickets, Twickets, or the venue's or festival's own resale |
+| Other unprotected payment (3) | Not bank transfer (a separate question) |
+| Screenshot as proof (12) | Only when offered as proof, not as the ticket itself |
+| **New good sign (21)**: "Does the seller give specific ticket details (date, venue, section, row or seat)?" | Take Five: clear booking details, seat information |
+| PDF or screenshot ticket (13) | Only the ticket itself as a PDF, screenshot or printout; posting paper tickets or an official e-ticket is no |
+| Part payment (5) | Only when the seller asks you to pay part first; their own deposit is no |
+| Very cheap (9) | Only unrealistically cheap (e.g. under half face value); a small discount is no |
+| Pressure to pay (8) | Urging you to pay quickly, including "quick sale"; asking for offers is no |
+| Move to private chat (11) | Email added |
+| Official transfer (18) | Also: a message claiming to BE a ticket company is not this |
+| Protected payment (20) | Plain "PayPal" with no detail is unclear |
+| **New red flag (22)**: "Does the message claim to be from a ticket company or resale team and ask you to pay or confirm through a link, a message or a bank transfer?" | Twickets founder via PA/STV (2025): fake Twickets accounts and websites. https://news.stv.tv/world/music-fans-urged-to-be-wary-of-last-minute-glastonbury-and-oasis-offers |
+
+The prompt also gives 7 short worked examples, written for the prompt (not taken from the practice or test data). See `EXAMPLES` in `scam_checker/scoring/ask_ai.py`.
+

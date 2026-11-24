@@ -254,10 +254,14 @@ def sensitivity_analysis(
     labels: list[int],
     groups: list[str],
     false_alarm_costs: tuple[float, ...] = FALSE_ALARM_COSTS_TO_TRY_GBP,
+    questions: tuple[Question, ...] = QUESTIONS,
 ) -> list[tuple[float, TrainingReport]]:
     """Train the scoring once per false alarm cost, to show how the choice changes the results.
 
     The cost of a false alarm has no published figure, so instead of guessing one
     value, several are tried and the results compared. One is then picked, with a reason.
     """
-    return [(cost, train_scoring(answer_rows, labels, groups, cost_false_alarm=cost)[1]) for cost in false_alarm_costs]
+    return [
+        (cost, train_scoring(answer_rows, labels, groups, cost_false_alarm=cost, questions=questions)[1])
+        for cost in false_alarm_costs
+    ]

@@ -14,8 +14,9 @@ Writes:
   data/step2/run_<model>.json      valid %, typical (p50) and slow-case (p95) seconds, energy per check
 
 Only the practice set is used, never the locked test set. Both models answer the
-same 157 examples (77 scams + 80 genuine); the 3 private WhatsApp group-chat
-examples are kept for later, when improving the winning model.
+same 143 music examples (74 scams + 69 genuine): non-music examples (football,
+rugby, theatre...) are skipped, and the 3 private WhatsApp group-chat examples are
+kept for later, when improving the winning model.
 Notes in [square brackets] that a buyer would not see are removed before asking.
 """
 
@@ -34,12 +35,19 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import requests  # noqa: E402
 from dotenv import load_dotenv  # noqa: E402
 
-from scam_checker.scoring.ask_ai import MODELS, make_asker, parse_reply, prompt_for, remove_bracket_notes  # noqa: E402
-from scam_checker.scoring.questions import QUESTION_IDS  # noqa: E402
+from scam_checker.scoring.ask_ai import (  # noqa: E402  # noqa: E402
+    MODELS,
+    PROMPT_VERSION,
+    V1_QUESTIONS,
+    make_asker,
+    parse_reply,
+    prompt_for,
+    remove_bracket_notes,
+)
+from scam_checker.scoring.questions import QUESTIONS, find_question  # noqa: E402
 
 PRACTICE_FILE = Path("data/step2/practice_set.csv")
 PRIVATE_SOURCE = "Open WhatsApp group chats"  # Orela's own examples: kept for improving the winner
-COLUMNS = ["id", *QUESTION_IDS, "valid", "seconds"]
 
 
 def read_rows(path: Path) -> list[dict[str, str]]:
@@ -88,29 +96,39 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--model", choices=list(MODELS), required=True)
     parser.add_argument("--limit", type=int, default=None, help="only do this many new examples (for a quick try)")
+    parser.add_argument(
+        "--prompt", type=int, choices=[1, 2], default=PROMPT_VERSION, help="prompt version (default: 2)"
+    )
     args = parser.parse_args()
 
     examples = read_rows(PRACTICE_FILE)
     examples = [row for row in examples if PRIVATE_SOURCE not in row["source"]]  # same set for every model
-    out_file = Path(f"data/step2/answers_{args.model}.csv")
+    examples = [row for row in examples if row["music_event"] == "yes"]  # music events only (no football, theatre...)
+    suffix = "" if args.prompt == 1 else f"_v{args.prompt}"  # version 1 files keep their original names
+    out_file = Path(f"data/step2/answers_{args.model}{suffix}.csv")
+    questions = tuple(find_question(q) for q in V1_QUESTIONS) if args.prompt == 1 else QUESTIONS
+    columns = ["id", *(q.id for q in questions), "valid", "seconds"]
     done = {row["id"] for row in read_rows(out_file)} if out_file.exists() else set()
     to_do = [row for row in examples if row["id"] not in done][: args.limit]
-    print(f"{args.model}: {len(done)} done already, {len(to_do)} to do now.")
+    print(f"{args.model} (prompt version {args.prompt}): {len(done)} done already, {len(to_do)} to do now.")
     if not to_do:
         return
 
     asker = make_asker(args.model)
     print("Warming up (loading the model into memory; not timed)...")
-    asker.ask(prompt_for("Warm-up: 1 ticket for sale."))  # the first call loads the model, which isn't fair to time
+    asker.ask(
+        prompt_for("Warm-up: 1 ticket for sale.", version=args.prompt)
+    )  # the first call loads the model, which isn't fair to time
     new_file = not out_file.exists()
     seconds, tracker = [], start_energy_meter(args.model)
     with out_file.open("a", encoding="utf-8", newline="") as file:
-        writer = csv.DictWriter(file, fieldnames=COLUMNS)
+        writer = csv.DictWriter(file, fieldnames=columns)
         if new_file:
             writer.writeheader()
         for number, row in enumerate(to_do, start=1):
-            reply, took = ask_with_retries(asker, prompt_for(remove_bracket_notes(row["text"])))
-            result = parse_reply(reply)
+            prompt = prompt_for(remove_bracket_notes(row["text"]), questions, version=args.prompt)
+            reply, took = ask_with_retries(asker, prompt)
+            result = parse_reply(reply, questions)
             writer.writerow({"id": row["id"], **result.answers, "valid": result.valid, "seconds": round(took, 2)})
             file.flush()
             seconds.append(took)
@@ -120,6 +138,7 @@ def main() -> None:
     all_rows = read_rows(out_file)
     summary = {
         "model": MODELS[args.model],
+        "prompt_version": args.prompt,
         "examples_answered": len(all_rows),
         "valid_percent": round(100 * sum(r["valid"] == "True" for r in all_rows) / len(all_rows), 1),
         "seconds_typical_p50": percentile([float(r["seconds"]) for r in all_rows], 0.50),
@@ -131,7 +150,7 @@ def main() -> None:
         data = tracker.final_emissions_data
         summary["energy_kwh_per_check"] = round(data.energy_consumed / len(seconds), 6)
         summary["co2_grams_per_check"] = round(1000 * data.emissions / len(seconds), 4)
-    Path(f"data/step2/run_{args.model}.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
+    Path(f"data/step2/run_{args.model}{suffix}.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
     print(json.dumps(summary, indent=2))
     del energy_kwh
 
