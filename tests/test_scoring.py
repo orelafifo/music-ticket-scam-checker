@@ -106,3 +106,23 @@ def test_sensitivity_analysis_tries_each_cost():
     assert [cost for cost, _ in results] == [10, 20, 50]
     levels = [report.warning_level for _, report in results]
     assert levels == sorted(levels)  # dearer false alarms -> the checker warns less readily
+
+
+def test_a_red_flag_the_data_gets_wrong_is_set_to_zero():
+    rows, labels, groups = made_up_answers()
+    for row, label in zip(rows, labels, strict=True):  # make "sad story" appear mostly in genuine posts
+        row["sob_story"] = "yes" if label == 0 else "no"
+    model, report = train_scoring(rows, labels, groups, cost_false_alarm=20)
+    assert model.weights["sob_story"] == 0
+    assert "sob_story" in report.wrong_direction
+    verdict = model.verdict(dict.fromkeys(model.question_ids, "no") | {"sob_story": "yes"})
+    assert verdict.good_signs == [] and verdict.reasons == []
+
+
+def test_every_weight_follows_its_direction():
+    from scam_checker.scoring.questions import find_question
+
+    model, _ = train_scoring(*made_up_answers(), cost_false_alarm=20)
+    for question_id, weight in model.weights.items():
+        sign = 1 if find_question(question_id).direction is Direction.RED_FLAG else -1
+        assert weight * sign >= 0

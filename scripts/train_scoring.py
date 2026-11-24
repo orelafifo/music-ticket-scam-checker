@@ -162,7 +162,7 @@ def main() -> None:
     for question_id, weight in report.weights_strongest_first:
         print(f"  {weight:+.2f}  {question_id}")
     if report.wrong_direction:
-        print(f"Check these: the data disagrees with their expected direction: {', '.join(report.wrong_direction)}")
+        print(f"Set to 0 (the data pushed them against their direction): {', '.join(report.wrong_direction)}")
 
 
 if __name__ == "__main__":

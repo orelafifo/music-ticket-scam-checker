@@ -4,6 +4,9 @@ How it works:
 - Each question answered "yes" counts as 1; "no" and "unclear" count as 0.
 - Logistic regression gives each question a weight. The weights are learned
   from the practice examples, so they show which warning signs matter most.
+- Each weight must follow its question's direction from the sources: a red flag
+  can only add risk, a good sign can only lower it. If the small practice set
+  pushes one the wrong way, it is set to 0 instead (it doesn't count).
   A bigger weight means the sign is stronger evidence of a scam; a negative
   weight means it is evidence of a genuine sale.
 - The weights turn the answers into a scam probability (0 to 1).
@@ -126,7 +129,7 @@ class TrainingReport:
     genuine_total: int
     expected_cost_per_check_gbp: float
     weights_strongest_first: list[tuple[str, float]]
-    wrong_direction: list[str]  # questions whose learned weight disagrees with their direction
+    wrong_direction: list[str]  # questions the data pushed the wrong way, so they were set to 0
 
 
 def expected_cost_per_check(
@@ -159,17 +162,41 @@ def choose_warning_level(
     return best_level, best_cost
 
 
-def cross_validated_probabilities(x: np.ndarray, y: np.ndarray, groups: list[str], folds: int = 5) -> np.ndarray:
+def fit_following_directions(x: np.ndarray, y: np.ndarray, signs: np.ndarray) -> tuple[np.ndarray, float, list[int]]:
+    """Logistic regression whose weights must follow each question's direction from the sources.
+
+    signs: +1 for a red flag (may only add risk), -1 for a good sign (may only lower it).
+    If the data pushes a weight the wrong way, that question is set to 0 (it doesn't count)
+    and the others are learned again, until every weight points the right way.
+    Returns (weights, intercept, positions of the questions set to 0).
+    """
+    used = list(range(x.shape[1]))
+    while True:
+        model = LogisticRegression(C=1.0, max_iter=1000).fit(x[:, used], y) if used else None
+        coefs = model.coef_[0] if model is not None else np.array([])
+        wrong = [used[i] for i, w in enumerate(coefs) if w * signs[used[i]] < 0]
+        if not wrong:
+            weights = np.zeros(x.shape[1])
+            weights[used] = coefs
+            intercept = float(model.intercept_[0]) if model is not None else 0.0
+            return weights, intercept, sorted(set(range(x.shape[1])) - set(used))
+        used = [i for i in used if i not in wrong]
+
+
+def cross_validated_probabilities(
+    x: np.ndarray, y: np.ndarray, groups: list[str], signs: np.ndarray, folds: int = 5
+) -> np.ndarray:
     """Scam probability for every example, each from a model that never saw that example.
 
     Examples from the same source are kept in the same fold, so the scoring is
-    always tested on sources it has not learned from.
+    always tested on sources it has not learned from. Each fold follows the same
+    direction rule as the final model.
     """
     probabilities = np.zeros(len(y))
     splitter = StratifiedGroupKFold(n_splits=folds, shuffle=True, random_state=2026)
     for train_rows, test_rows in splitter.split(x, y, groups):
-        model = LogisticRegression(C=1.0, max_iter=1000).fit(x[train_rows], y[train_rows])
-        probabilities[test_rows] = model.predict_proba(x[test_rows])[:, 1]
+        weights, intercept, _ = fit_following_directions(x[train_rows], y[train_rows], signs)
+        probabilities[test_rows] = 1 / (1 + np.exp(-(intercept + x[test_rows] @ weights)))
     return probabilities
 
 
@@ -187,25 +214,21 @@ def train_scoring(
     x = np.array([answers_to_numbers(row, question_ids) for row in answer_rows])
     y = np.array(labels)
 
+    signs = np.array([1 if q.direction is Direction.RED_FLAG else -1 for q in questions])
+
     # 1. Choose the warning level from cross-validated probabilities (fair: unseen examples).
-    probabilities = cross_validated_probabilities(x, y, groups)
+    probabilities = cross_validated_probabilities(x, y, groups, signs)
     level, cost = choose_warning_level(probabilities, y, cost_missed_scam, cost_false_alarm, scam_rate)
     flagged = probabilities >= level
 
-    # 2. Learn the final weights from all practice examples.
-    final = LogisticRegression(C=1.0, max_iter=1000).fit(x, y)
-    weights = {q: round(float(w), 3) for q, w in zip(question_ids, final.coef_[0], strict=True)}
-
-    wrong_direction = [
-        q.id
-        for q in questions
-        if (q.direction is Direction.RED_FLAG and weights[q.id] < 0)
-        or (q.direction is Direction.GOOD_SIGN and weights[q.id] > 0)
-    ]
+    # 2. Learn the final weights from all practice examples, following the sources' directions.
+    final_weights, intercept, set_to_zero = fit_following_directions(x, y, signs)
+    weights = {q: round(float(w), 3) for q, w in zip(question_ids, final_weights, strict=True)}
+    wrong_direction = [question_ids[i] for i in set_to_zero]
     model = ScoringModel(
         question_ids=question_ids,
         weights=weights,
-        intercept=round(float(final.intercept_[0]), 3),
+        intercept=round(intercept, 3),
         warning_level=level,
         trained_on=trained_on,
         costs={"missed_scam_gbp": cost_missed_scam, "false_alarm_gbp": cost_false_alarm, "scam_rate": scam_rate},
