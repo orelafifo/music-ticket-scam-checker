@@ -2,6 +2,7 @@
 
 Usage (one model at a time; Ollama must be open for qwen and gemma):
     python scripts/run_ai_answers.py --model qwen
+    python scripts/run_ai_answers.py --model qwen25
     python scripts/run_ai_answers.py --model gemma
     python scripts/run_ai_answers.py --model gemini
 
@@ -33,9 +34,17 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+import requests  # noqa: E402
 from dotenv import load_dotenv  # noqa: E402
 
-from scam_checker.scoring.ask_ai import MODELS, make_asker, parse_reply, prompt_for, remove_bracket_notes  # noqa: E402
+from scam_checker.scoring.ask_ai import (
+    MODELS,
+    QuotaReachedError,
+    make_asker,
+    parse_reply,
+    prompt_for,
+    remove_bracket_notes,
+)  # noqa: E402
 from scam_checker.scoring.questions import QUESTION_IDS  # noqa: E402
 
 PRACTICE_FILE = Path("data/step2/practice_set.csv")
@@ -51,6 +60,34 @@ def read_rows(path: Path) -> list[dict[str, str]]:
 def percentile(values: list[float], share: float) -> float:
     ordered = sorted(values)
     return round(ordered[min(len(ordered) - 1, int(share * len(ordered)))], 2)
+
+
+def ask_with_retries(asker, prompt: str, attempts: int = 3) -> tuple[str, float]:
+    """If the model doesn't reply in time (e.g. the cloud service is busy), wait and try again.
+
+    Only the attempt that worked is timed, so a dropped connection isn't counted as the model being slow.
+    """
+    for attempt in range(1, attempts + 1):
+        started = time.perf_counter()
+        try:
+            return asker.ask(prompt), time.perf_counter() - started
+        except QuotaReachedError as limit:
+            if limit.daily or attempt == attempts:
+                raise SystemExit(
+                    "Google's daily limit for Gemini is reached. Everything so far is saved: "
+                    "run the same command again tomorrow (or after turning on billing) to carry on."
+                ) from limit
+            print(f"    Google's per-minute limit reached, waiting {limit.wait_seconds} seconds...")
+            time.sleep(limit.wait_seconds)
+        except (requests.Timeout, requests.ConnectionError) as error:
+            if attempt == attempts:
+                raise SystemExit(
+                    f"No reply after {attempts} tries ({error.__class__.__name__}). "
+                    "Everything so far is saved: run the same command again later to carry on."
+                ) from error
+            print(f"    no reply (try {attempt} of {attempts}), waiting 30 seconds...")
+            time.sleep(30)
+    raise AssertionError("unreachable")
 
 
 def start_energy_meter(model: str):
@@ -81,8 +118,9 @@ def main() -> None:
         return
 
     asker = make_asker(args.model)
-    print("Warming up (loading the model into memory; not timed)...")
-    asker.ask(prompt_for("Warm-up: 1 ticket for sale."))  # the first call loads the model, which isn't fair to time
+    if MODELS[args.model][0] == "ollama":  # cloud models have nothing to load, and every request counts
+        print("Warming up (loading the model into memory; not timed)...")
+        asker.ask(prompt_for("Warm-up: 1 ticket for sale."))  # the first call loads the model, which isn't fair to time
     new_file = not out_file.exists()
     seconds, tracker = [], start_energy_meter(args.model)
     with out_file.open("a", encoding="utf-8", newline="") as file:
@@ -90,9 +128,7 @@ def main() -> None:
         if new_file:
             writer.writeheader()
         for number, row in enumerate(to_do, start=1):
-            started = time.perf_counter()
-            reply = asker.ask(prompt_for(remove_bracket_notes(row["text"])))
-            took = time.perf_counter() - started
+            reply, took = ask_with_retries(asker, prompt_for(remove_bracket_notes(row["text"])))
             result = parse_reply(reply)
             writer.writerow({"id": row["id"], **result.answers, "valid": result.valid, "seconds": round(took, 2)})
             file.flush()

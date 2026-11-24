@@ -1,0 +1,11 @@
+{
+  "model": "qwen2.5vl:3b",
+  "examples_answered": 157,
+  "valid_percent": 100.0,
+  "seconds_typical_p50": 6.57,
+  "seconds_slow_case_p95": 16.91,
+  "seconds_mean_this_session": 8.52,
+  "where_it_runs": "this computer",
+  "energy_kwh_per_check": 6.1e-05,
+  "co2_grams_per_check": 0.0132
+}

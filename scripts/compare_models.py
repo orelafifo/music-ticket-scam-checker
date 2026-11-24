@@ -37,10 +37,10 @@ from scam_checker.scoring.questions import find_question  # noqa: E402
 from scam_checker.scoring.scorer import ScoringModel, train_scoring  # noqa: E402
 from scripts.train_scoring import load_training_rows  # noqa: E402
 
-MODELS = {"qwen": "Qwen3.5 4B", "gemma": "Gemma 4 E4B", "gemini": "Gemini Flash"}
-LOCAL = {"qwen", "gemma"}
+MODELS = {"qwen": "Qwen3.5 4B", "qwen25": "Qwen2.5-VL 3B", "gemma": "Gemma 4 E4B", "gemini": "Gemini Flash"}
+LOCAL = {"qwen", "qwen25", "gemma"}
 # Colours: validated categorical slots 1-3 (blue, orange, aqua), text in ink colours.
-COLOURS = {"qwen": "#2a78d6", "gemma": "#eb6834", "gemini": "#1baf7a"}
+COLOURS = {"qwen": "#2a78d6", "qwen25": "#eb6834", "gemma": "#eb6834", "gemini": "#1baf7a"}
 SCAM_SIGN, GOOD_SIGN = "#e34948", "#2a78d6"  # diverging pair for the weights chart
 INK, MUTED, GRID, SURFACE = "#0b0b0b", "#52514e", "#e6e5e1", "#fcfcfb"
 OUT = Path("outputs")

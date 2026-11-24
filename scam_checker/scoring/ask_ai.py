@@ -23,10 +23,12 @@ from .questions import ANSWERS, QUESTIONS, Question
 
 OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434")
 GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
-TIMEOUT_SECONDS = 180
+TIMEOUT_SECONDS = 180  # local models; the first call also loads the model
+CLOUD_TIMEOUT_SECONDS = 90
 
 MODELS = {
     "qwen": ("ollama", "qwen3.5:4b"),
+    "qwen25": ("ollama", "qwen2.5vl:3b"),  # the older Qwen already used in Step 1
     "gemma": ("ollama", "gemma4:e4b"),
     "gemini": ("gemini", os.getenv("GEMINI_MODEL", "gemini-3.6-flash")),
 }
@@ -64,6 +66,16 @@ class AIAnswers:
     answers: dict[str, str] = field(default_factory=dict)
     valid: bool = False  # True only if every question got yes / no / unclear
     raw_reply: str = ""
+
+
+def answer_schema(questions: tuple[Question, ...] = QUESTIONS) -> dict:
+    """The exact shape of a reply: one key per question, each holding yes, no or unclear."""
+    answer = {"type": "STRING", "enum": list(ANSWERS)}
+    return {
+        "type": "OBJECT",
+        "properties": {question.id: answer for question in questions},
+        "required": [question.id for question in questions],
+    }
 
 
 def parse_reply(reply: str, questions: tuple[Question, ...] = QUESTIONS) -> AIAnswers:
@@ -108,6 +120,16 @@ class OllamaAsker:
         return response.json()["message"]["content"]
 
 
+class QuotaReachedError(RuntimeError):
+    """Google's usage limit was reached (error 429)."""
+
+    def __init__(self, details: str):
+        super().__init__(details)
+        self.daily = "perday" in details.lower().replace("_", "").replace(" ", "")
+        found = re.search(r'"retryDelay":\s*"(\d+)', details)
+        self.wait_seconds = int(found.group(1)) + 2 if found else 60
+
+
 class GeminiAsker:
     def __init__(self, model: str, api_key: str | None = None, post=requests.post):
         self.model, self._post = model, post
@@ -119,7 +141,12 @@ class GeminiAsker:
         # Thinking set to "low" (Gemini's default is "medium"), to match Qwen, which runs with thinking off.
         body = {
             "contents": [{"parts": [{"text": prompt}]}],
-            "generationConfig": {"responseMimeType": "application/json", "thinkingConfig": {"thinkingLevel": "low"}},
+            "generationConfig": {
+                "responseMimeType": "application/json",
+                "responseSchema": answer_schema(),  # every answer must be yes / no / unclear, nothing else
+                "maxOutputTokens": 2048,  # stops a reply that gets stuck repeating itself
+                "thinkingConfig": {"thinkingLevel": "low"},
+            },
         }
         response = self._send(body)
         if response.status_code == 400 and "think" in response.text.lower():
@@ -127,6 +154,8 @@ class GeminiAsker:
             response = self._send(body)
         if response.status_code == 404:
             raise RuntimeError(f"Gemini model '{self.model}' not found. Set GEMINI_MODEL in .env to a current one.")
+        if response.status_code == 429:
+            raise QuotaReachedError(response.text)
         if response.status_code >= 400:
             raise RuntimeError(f"Gemini couldn't answer: {response.text.strip()[:300]}")
         parts = response.json()["candidates"][0]["content"]["parts"]
@@ -137,7 +166,7 @@ class GeminiAsker:
             GEMINI_URL.format(model=self.model),
             headers={"x-goog-api-key": self._key},
             json=body,
-            timeout=TIMEOUT_SECONDS,
+            timeout=CLOUD_TIMEOUT_SECONDS,
         )
 
 

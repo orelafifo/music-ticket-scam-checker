@@ -81,3 +81,22 @@ def test_gemini_asks_for_low_thinking_and_falls_back():
 
     assert GeminiAsker("gemini-x", api_key="k", post=post).ask("hi") == '{"bank_transfer": "no"}'
     assert calls[0]["thinkingConfig"] == {"thinkingLevel": "low"} and "thinkingConfig" not in calls[1]
+
+
+def test_answer_schema_allows_only_yes_no_unclear_for_every_question():
+    from scam_checker.scoring.ask_ai import answer_schema
+
+    schema = answer_schema()
+    assert schema["required"] == list(QUESTION_IDS)
+    assert all(p["enum"] == ["yes", "no", "unclear"] for p in schema["properties"].values())
+
+
+def test_quota_message_tells_daily_from_per_minute():
+    from scam_checker.scoring.ask_ai import QuotaReachedError
+
+    daily = QuotaReachedError('{"quotaId": "GenerateRequestsPerDayPerProjectPerModel-FreeTier"}')
+    minute = QuotaReachedError(
+        '{"quotaId": "GenerateRequestsPerMinutePerProjectPerModel-FreeTier", "retryDelay": "41s"}'
+    )
+    assert daily.daily and not minute.daily
+    assert minute.wait_seconds == 43
