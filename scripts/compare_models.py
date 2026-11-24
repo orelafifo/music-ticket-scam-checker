@@ -12,6 +12,7 @@ Saves in outputs/:
   step2_false_alarms.png          false alarms, per model
   step2_speed.png                 typical and slow-case seconds per check
   step2_energy.png                energy per check
+  step2_model_comparison.png      all four charts in one image
   step2_warning_signs_<model>.png which warning signs matter most, for the winner
   step2_model_comparison.csv      the same numbers as a table
   step2_winner.txt                which model won and why, rule by rule
@@ -167,6 +168,62 @@ def comparison_charts(results: dict[str, ModelResult]) -> list[Path]:
     return paths
 
 
+def combined_chart(results: dict[str, ModelResult]) -> Path:
+    """All four comparisons in one image: scams caught, false alarms, speed, energy."""
+    keys, rows = list(results), list(results.values())
+    fig, axes = plt.subplots(2, 2, figsize=(11, 6.4), facecolor=SURFACE)
+    fig.subplots_adjust(hspace=0.7, wspace=0.42, top=0.86, bottom=0.12, left=0.12, right=0.97)
+    bars(
+        axes[0][0],
+        keys,
+        [100 * r.scams_caught / r.scams_total for r in rows],
+        [f"{r.scams_caught}/{r.scams_total}" for r in rows],
+        "Scams caught (higher is better)",
+        "% of scams",
+        xmax=110,
+    )
+    alarms = [100 * r.false_alarms / r.genuine_total for r in rows]
+    bars(
+        axes[0][1],
+        keys,
+        alarms,
+        [f"{r.false_alarms}/{r.genuine_total}" for r in rows],
+        "False alarms (lower is better)",
+        "% of genuine posts",
+        xmax=max(max(alarms) * 1.4, 10),
+    )
+    ax = axes[1][0]
+    for i, (key, r) in enumerate(results.items()):
+        ax.plot([r.seconds_p50, r.seconds_p95], [i, i], color=COLOURS[key], linewidth=2)
+        ax.plot(r.seconds_p50, i, "o", color=COLOURS[key], markersize=8, markeredgecolor=SURFACE, markeredgewidth=2)
+        ax.text(r.seconds_p95, i - 0.3, f"{r.seconds_p50}s · {r.seconds_p95}s", fontsize=8.5, color=INK, ha="right")
+    ax.set_yticks(range(len(keys)), [MODELS[k] for k in keys])
+    ax.set_ylim(len(keys) - 0.4, -0.75)
+    ax.set_xlim(0, max(r.seconds_p95 for r in rows) * 1.15)
+    style(ax, "Speed per check (dot = typical, line to slow case)", "seconds")
+    with_energy = [k for k in keys if results[k].energy_wh_per_check is not None]
+    if with_energy:
+        values = [results[k].energy_wh_per_check for k in with_energy]
+        bars(
+            axes[1][1],
+            with_energy,
+            values,
+            [f"{v} Wh" for v in values],
+            "Energy per check (lower is better)",
+            "watt-hours",
+        )
+    else:
+        axes[1][1].axis("off")
+    fig.suptitle(
+        "Qwen3.5 4B vs Qwen2.5-VL 3B on the same 157 practice examples", x=0.02, ha="left", fontsize=13, color=INK
+    )
+    return save(
+        fig,
+        "step2_model_comparison.png",
+        "Scams caught and false alarms are cross-validated. Energy measured with codecarbon.",
+    )
+
+
 def weights_chart(key: str, scoring: ScoringModel) -> Path:
     items = sorted(scoring.weights.items(), key=lambda item: item[1])
     fig, ax = plt.subplots(figsize=(9, 0.32 * len(items) + 1.4), facecolor=SURFACE)
@@ -202,7 +259,7 @@ def main() -> None:
         writer.writeheader()
         writer.writerows(vars(r) for r in results.values())
 
-    for path in comparison_charts(results):
+    for path in [*comparison_charts(results), combined_chart(results)]:
         print(f"Saved {path}")
     if winner:
         key = next(k for k, r in results.items() if r is winner)
