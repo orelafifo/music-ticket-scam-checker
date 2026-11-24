@@ -1,10 +1,8 @@
 """Step 2, part 3: let one AI model answer the yes/no questions for every practice example.
 
-Usage (one model at a time; Ollama must be open for qwen and gemma):
+Usage (one model at a time; the Ollama app must be open):
     python scripts/run_ai_answers.py --model qwen
     python scripts/run_ai_answers.py --model qwen25
-    python scripts/run_ai_answers.py --model gemma
-    python scripts/run_ai_answers.py --model gemini
 
 Try a few first:   python scripts/run_ai_answers.py --model qwen --limit 3
 
@@ -15,10 +13,9 @@ Writes:
   data/step2/answers_<model>.csv   one row per example: the answers, valid or not, seconds
   data/step2/run_<model>.json      valid %, typical (p50) and slow-case (p95) seconds, energy per check
 
-Only the practice set is used, never the locked test set. The 3 private WhatsApp
-group-chat examples are skipped for every model, so that Gemini (in the cloud) never
-sees them and all 3 models are compared on exactly the same 157 examples
-(77 scams + 80 genuine). Those 3 are used later, when improving the winning model.
+Only the practice set is used, never the locked test set. Both models answer the
+same 157 examples (77 scams + 80 genuine); the 3 private WhatsApp group-chat
+examples are kept for later, when improving the winning model.
 Notes in [square brackets] that a buyer would not see are removed before asking.
 """
 
@@ -37,18 +34,11 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import requests  # noqa: E402
 from dotenv import load_dotenv  # noqa: E402
 
-from scam_checker.scoring.ask_ai import (
-    MODELS,
-    QuotaReachedError,
-    make_asker,
-    parse_reply,
-    prompt_for,
-    remove_bracket_notes,
-)  # noqa: E402
+from scam_checker.scoring.ask_ai import MODELS, make_asker, parse_reply, prompt_for, remove_bracket_notes  # noqa: E402
 from scam_checker.scoring.questions import QUESTION_IDS  # noqa: E402
 
 PRACTICE_FILE = Path("data/step2/practice_set.csv")
-PRIVATE_SOURCE = "Open WhatsApp group chats"  # Orela's own examples: never sent to the cloud
+PRIVATE_SOURCE = "Open WhatsApp group chats"  # Orela's own examples: kept for improving the winner
 COLUMNS = ["id", *QUESTION_IDS, "valid", "seconds"]
 
 
@@ -63,7 +53,7 @@ def percentile(values: list[float], share: float) -> float:
 
 
 def ask_with_retries(asker, prompt: str, attempts: int = 3) -> tuple[str, float]:
-    """If the model doesn't reply in time (e.g. the cloud service is busy), wait and try again.
+    """If the model doesn't reply in time, wait and try again.
 
     Only the attempt that worked is timed, so a dropped connection isn't counted as the model being slow.
     """
@@ -71,14 +61,6 @@ def ask_with_retries(asker, prompt: str, attempts: int = 3) -> tuple[str, float]
         started = time.perf_counter()
         try:
             return asker.ask(prompt), time.perf_counter() - started
-        except QuotaReachedError as limit:
-            if limit.daily or attempt == attempts:
-                raise SystemExit(
-                    "Google's daily limit for Gemini is reached. Everything so far is saved: "
-                    "run the same command again tomorrow (or after turning on billing) to carry on."
-                ) from limit
-            print(f"    Google's per-minute limit reached, waiting {limit.wait_seconds} seconds...")
-            time.sleep(limit.wait_seconds)
         except (requests.Timeout, requests.ConnectionError) as error:
             if attempt == attempts:
                 raise SystemExit(
@@ -118,9 +100,8 @@ def main() -> None:
         return
 
     asker = make_asker(args.model)
-    if MODELS[args.model][0] == "ollama":  # cloud models have nothing to load, and every request counts
-        print("Warming up (loading the model into memory; not timed)...")
-        asker.ask(prompt_for("Warm-up: 1 ticket for sale."))  # the first call loads the model, which isn't fair to time
+    print("Warming up (loading the model into memory; not timed)...")
+    asker.ask(prompt_for("Warm-up: 1 ticket for sale."))  # the first call loads the model, which isn't fair to time
     new_file = not out_file.exists()
     seconds, tracker = [], start_energy_meter(args.model)
     with out_file.open("a", encoding="utf-8", newline="") as file:
@@ -138,20 +119,18 @@ def main() -> None:
 
     all_rows = read_rows(out_file)
     summary = {
-        "model": MODELS[args.model][1],
+        "model": MODELS[args.model],
         "examples_answered": len(all_rows),
         "valid_percent": round(100 * sum(r["valid"] == "True" for r in all_rows) / len(all_rows), 1),
         "seconds_typical_p50": percentile([float(r["seconds"]) for r in all_rows], 0.50),
         "seconds_slow_case_p95": percentile([float(r["seconds"]) for r in all_rows], 0.95),
         "seconds_mean_this_session": round(statistics.mean(seconds), 2),
-        "where_it_runs": "this computer" if MODELS[args.model][0] == "ollama" else "Google's cloud",
+        "where_it_runs": "this computer",
     }
     if tracker:
         data = tracker.final_emissions_data
         summary["energy_kwh_per_check"] = round(data.energy_consumed / len(seconds), 6)
         summary["co2_grams_per_check"] = round(1000 * data.emissions / len(seconds), 4)
-        if args.model == "gemini":
-            summary["energy_note"] = "Only this computer's share is measured; Google's data-centre energy is not."
     Path(f"data/step2/run_{args.model}.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
     print(json.dumps(summary, indent=2))
     del energy_kwh

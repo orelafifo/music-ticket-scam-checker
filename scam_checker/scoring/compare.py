@@ -1,7 +1,6 @@
-"""Compare the 3 AI models and pick the winner, using the judging rules written before testing.
+"""Compare the AI models and pick the winner, using the judging rules written before testing.
 
-See docs/step2_judging_rules.md. Only the models that run on this computer can win;
-Gemini is a benchmark. The rules, in order:
+See docs/step2_judging_rules.md. The rules, in order:
   1. valid answers at least 95% of the time, or the model is out;
   2. more scams caught wins;
   3. within 2 scams of each other -> fewer false alarms wins;
@@ -20,7 +19,6 @@ TOO_CLOSE = 2  # examples
 @dataclass
 class ModelResult:
     name: str
-    runs_locally: bool
     scams_caught: int
     scams_total: int
     false_alarms: int
@@ -36,9 +34,7 @@ def pick_winner(results: list[ModelResult]) -> tuple[ModelResult | None, list[st
     reasons = []
     candidates = []
     for result in results:
-        if not result.runs_locally:
-            reasons.append(f"{result.name} is a benchmark only (runs in the cloud), so it can't win.")
-        elif result.valid_percent < MIN_VALID_PERCENT:
+        if result.valid_percent < MIN_VALID_PERCENT:
             reasons.append(f"{result.name} is out: valid answers {result.valid_percent}% (needs {MIN_VALID_PERCENT}%).")
         else:
             candidates.append(result)

@@ -1,4 +1,4 @@
-"""Step 2, part 5: compare the 3 AI models and save the charts for the report.
+"""Step 2, part 5: compare the 2 AI models and save the charts for the report.
 
 Run after each model has answered the questions (run_ai_answers.py) and its
 scoring has been trained and saved (train_scoring.py --cost-false-alarm ...):
@@ -37,10 +37,9 @@ from scam_checker.scoring.questions import find_question  # noqa: E402
 from scam_checker.scoring.scorer import ScoringModel, train_scoring  # noqa: E402
 from scripts.train_scoring import load_training_rows  # noqa: E402
 
-MODELS = {"qwen": "Qwen3.5 4B", "qwen25": "Qwen2.5-VL 3B", "gemma": "Gemma 4 E4B", "gemini": "Gemini Flash"}
-LOCAL = {"qwen", "qwen25", "gemma"}
-# Colours: validated categorical slots 1-3 (blue, orange, aqua), text in ink colours.
-COLOURS = {"qwen": "#2a78d6", "qwen25": "#eb6834", "gemma": "#eb6834", "gemini": "#1baf7a"}
+MODELS = {"qwen": "Qwen3.5 4B", "qwen25": "Qwen2.5-VL 3B"}
+# Colours: validated categorical slots 1-2 (blue, orange), text in ink colours.
+COLOURS = {"qwen": "#2a78d6", "qwen25": "#eb6834"}
 SCAM_SIGN, GOOD_SIGN = "#e34948", "#2a78d6"  # diverging pair for the weights chart
 INK, MUTED, GRID, SURFACE = "#0b0b0b", "#52514e", "#e6e5e1", "#fcfcfb"
 OUT = Path("outputs")
@@ -60,7 +59,6 @@ def load_result(key: str) -> tuple[ModelResult, ScoringModel] | None:
     return (
         ModelResult(
             name=MODELS[key],
-            runs_locally=key in LOCAL,
             scams_caught=report.scams_caught,
             scams_total=report.scams_total,
             false_alarms=report.false_alarms,
@@ -162,9 +160,9 @@ def comparison_charts(results: dict[str, ModelResult]) -> list[Path]:
     if with_energy:
         fig, ax = new_chart()
         values = [results[k].energy_wh_per_check for k in with_energy]
-        texts = [f"{v} Wh" + (" *" if k == "gemini" else "") for k, v in zip(with_energy, values, strict=True)]
+        texts = [f"{v} Wh" for v in values]
         bars(ax, with_energy, values, texts, "Energy per check (lower is better)", "watt-hours")
-        note = "Measured with codecarbon. * Gemini: only this computer's energy, not Google's data centre."
+        note = "Measured with codecarbon on the same MacBook Air."
         paths.append(save(fig, "step2_energy.png", note))
     return paths
 
