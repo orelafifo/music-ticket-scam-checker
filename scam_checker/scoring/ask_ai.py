@@ -116,21 +116,29 @@ class GeminiAsker:
             raise RuntimeError("Add GEMINI_API_KEY to your .env file to use Gemini.")
 
     def ask(self, prompt: str) -> str:
+        # Thinking set to "low" (Gemini's default is "medium"), to match Qwen, which runs with thinking off.
         body = {
             "contents": [{"parts": [{"text": prompt}]}],
-            "generationConfig": {"responseMimeType": "application/json"},
+            "generationConfig": {"responseMimeType": "application/json", "thinkingConfig": {"thinkingLevel": "low"}},
         }
-        response = self._post(
+        response = self._send(body)
+        if response.status_code == 400 and "think" in response.text.lower():
+            body["generationConfig"].pop("thinkingConfig")  # this model has no thinking setting
+            response = self._send(body)
+        if response.status_code == 404:
+            raise RuntimeError(f"Gemini model '{self.model}' not found. Set GEMINI_MODEL in .env to a current one.")
+        if response.status_code >= 400:
+            raise RuntimeError(f"Gemini couldn't answer: {response.text.strip()[:300]}")
+        parts = response.json()["candidates"][0]["content"]["parts"]
+        return "".join(part.get("text", "") for part in parts)
+
+    def _send(self, body: dict):
+        return self._post(
             GEMINI_URL.format(model=self.model),
             headers={"x-goog-api-key": self._key},
             json=body,
             timeout=TIMEOUT_SECONDS,
         )
-        if response.status_code == 404:
-            raise RuntimeError(f"Gemini model '{self.model}' not found. Set GEMINI_MODEL in .env to a current one.")
-        response.raise_for_status()
-        parts = response.json()["candidates"][0]["content"]["parts"]
-        return "".join(part.get("text", "") for part in parts)
 
 
 def make_asker(name: str):

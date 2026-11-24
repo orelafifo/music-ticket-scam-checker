@@ -66,3 +66,18 @@ def test_ollama_retries_without_thinking_switch():
 
     assert OllamaAsker("gemma4:e4b", post=post).ask("hi") == '{"bank_transfer": "no"}'
     assert "think" in calls[0] and "think" not in calls[1]
+
+
+def test_gemini_asks_for_low_thinking_and_falls_back():
+    from scam_checker.scoring.ask_ai import GeminiAsker
+
+    calls = []
+
+    def post(url, headers, json, timeout):
+        calls.append(json["generationConfig"].copy())
+        if "thinkingConfig" in json["generationConfig"]:
+            return FakeResponse(400, {"error": "thinking level not supported"})
+        return FakeResponse(200, {"candidates": [{"content": {"parts": [{"text": '{"bank_transfer": "no"}'}]}}]})
+
+    assert GeminiAsker("gemini-x", api_key="k", post=post).ask("hi") == '{"bank_transfer": "no"}'
+    assert calls[0]["thinkingConfig"] == {"thinkingLevel": "low"} and "thinkingConfig" not in calls[1]
