@@ -33,7 +33,10 @@ class Question:
 QUESTIONS: tuple[Question, ...] = (
     Question(
         id="bank_transfer",
-        text="Does the seller ask for payment by bank transfer?",
+        text=(
+            "Does the seller ask for payment by bank transfer? No if bank transfer is only offered as an option "
+            "next to an official transfer or a protected payment."
+        ),
         reason="The seller wants a bank transfer, which gives you no protection if the tickets never arrive.",
         direction=Direction.RED_FLAG,
         source="Take Five: https://www.takefive-stopfraud.org.uk/protect-yourself/ticket-scams/",
@@ -112,10 +115,10 @@ QUESTIONS: tuple[Question, ...] = (
     Question(
         id="sob_story",
         text=(
-            "Does the seller use an emotional or dramatic story (illness, death, an emergency) to gain your trust "
-            "or hurry you? A plain reason like 'can't go any more' or 'no longer available' is no."
+            "Does the seller give a personal story or reason for selling (illness, family, a baby, exams, work, "
+            "money problems)? Just 'can't go any more' or 'no longer available' with no story is no."
         ),
-        reason="The seller gives a sad story, which scammers often use to make you trust them.",
+        reason="The seller gives a personal story, which scammers often use to make you trust them.",
         direction=Direction.RED_FLAG,
         source="North West Regional Organised Crime Unit: https://www.rocu.police.uk/syssiteassets2/media/images/news/nwrocu/nwrocu_lbobs_5th-edition_rgb_2025-online.pdf",  # noqa: E501
     ),

@@ -41,7 +41,8 @@ Changes made after the first comparison, to cut false alarms and catch fake 'off
 
 | Question | Change |
 |---|---|
-| Sad story (10) | Only an emotional or dramatic story used to gain trust or hurry you; a plain "can't go any more" is no |
+| Sad story (10) | Any personal story or reason (illness, family, a baby, exams, work, money); a plain "can't go any more" is no |
+| Bank transfer (1) | No if only offered as an option next to an official transfer or protected payment |
 | Official transfer (18) | Yes if they mention transferring through Ticketmaster, AXS, DICE, See Tickets, Twickets, or the venue's or festival's own resale |
 | Other unprotected payment (3) | Not bank transfer (a separate question) |
 | Screenshot as proof (12) | Only when offered as proof, not as the ticket itself |
