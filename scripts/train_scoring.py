@@ -62,7 +62,12 @@ def load_training_rows(answers_file: Path) -> tuple[list[dict[str, str]], list[i
     return answers, labels, groups
 
 
-DISPLAY_NAMES = {"qwen": "Qwen3.5 4B", "qwen25": "Qwen2.5-VL 3B", "qwen_v2": "Qwen3.5 4B, prompt version 2"}
+DISPLAY_NAMES = {
+    "qwen": "Qwen3.5 4B",
+    "qwen25": "Qwen2.5-VL 3B",
+    "qwen_v2": "Qwen3.5 4B, prompt version 2",
+    "qwen_rag": "Qwen3.5 4B with RAG",
+}
 OUT = Path("outputs")
 
 

@@ -5,6 +5,8 @@ Usage (one model at a time; the Ollama app must be open):
     python scripts/run_ai_answers.py --model qwen25
 
 Try a few first:   python scripts/run_ai_answers.py --model qwen --limit 3
+With RAG (similar listings from data/step2/rag_library.csv in the prompt):
+    python scripts/run_ai_answers.py --model qwen --rag
 
 Saves after every example, so you can stop with Ctrl + C and run the same
 command again later: it carries on where it stopped.
@@ -44,6 +46,7 @@ from scam_checker.scoring.ask_ai import (  # noqa: E402  # noqa: E402
     prompt_for,
     remove_bracket_notes,
 )
+from scam_checker.scoring.library import Library  # noqa: E402
 from scam_checker.scoring.questions import QUESTIONS, find_question  # noqa: E402
 
 PRACTICE_FILE = Path("data/step2/practice_set.csv")
@@ -99,18 +102,23 @@ def main() -> None:
     parser.add_argument(
         "--prompt", type=int, choices=[1, 2], default=PROMPT_VERSION, help="prompt version (default: 2)"
     )
+    parser.add_argument("--rag", action="store_true", help="add 3 similar listings from the checked library")
     args = parser.parse_args()
+    if args.rag and args.prompt == 1:
+        raise SystemExit("RAG is only used with prompt version 2.")
+    library = Library.load() if args.rag else None
 
     examples = read_rows(PRACTICE_FILE)
     examples = [row for row in examples if PRIVATE_SOURCE not in row["source"]]  # same set for every model
     examples = [row for row in examples if row["music_event"] == "yes"]  # music events only (no football, theatre...)
-    suffix = "" if args.prompt == 1 else f"_v{args.prompt}"  # version 1 files keep their original names
+    suffix = "_rag" if args.rag else "" if args.prompt == 1 else f"_v{args.prompt}"  # version 1 keeps its names
     out_file = Path(f"data/step2/answers_{args.model}{suffix}.csv")
     questions = tuple(find_question(q) for q in V1_QUESTIONS) if args.prompt == 1 else QUESTIONS
     columns = ["id", *(q.id for q in questions), "valid", "seconds"]
     done = {row["id"] for row in read_rows(out_file)} if out_file.exists() else set()
     to_do = [row for row in examples if row["id"] not in done][: args.limit]
-    print(f"{args.model} (prompt version {args.prompt}): {len(done)} done already, {len(to_do)} to do now.")
+    label = "RAG" if args.rag else f"prompt version {args.prompt}"
+    print(f"{args.model} ({label}): {len(done)} done already, {len(to_do)} to do now.")
     if not to_do:
         return
 
@@ -126,7 +134,10 @@ def main() -> None:
         if new_file:
             writer.writeheader()
         for number, row in enumerate(to_do, start=1):
-            prompt = prompt_for(remove_bracket_notes(row["text"]), questions, version=args.prompt)
+            listing = remove_bracket_notes(row["text"])
+            # Fairness rule: never show the tested example, or anything from the same source.
+            similar = library.similar(listing, skip_id=row["id"], skip_source=row["source"]) if library else None
+            prompt = prompt_for(listing, questions, version=args.prompt, similar=similar)
             reply, took = ask_with_retries(asker, prompt)
             result = parse_reply(reply, questions)
             writer.writerow({"id": row["id"], **result.answers, "valid": result.valid, "seconds": round(took, 2)})
@@ -139,6 +150,7 @@ def main() -> None:
     summary = {
         "model": MODELS[args.model],
         "prompt_version": args.prompt,
+        "rag": args.rag,
         "examples_answered": len(all_rows),
         "valid_percent": round(100 * sum(r["valid"] == "True" for r in all_rows) / len(all_rows), 1),
         "seconds_typical_p50": percentile([float(r["seconds"]) for r in all_rows], 0.50),

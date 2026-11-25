@@ -19,6 +19,7 @@ from dataclasses import dataclass, field
 
 import requests
 
+from .library import LibraryExample
 from .questions import ANSWERS, QUESTIONS, Question
 
 OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434")
@@ -96,8 +97,16 @@ PROMPT_VERSION = 2  # the version used unless another is asked for
 REDACTION_TAG = re.compile(r"^\[(EMAIL|PHONE|BANK DETAILS|NAME|LINK|title|removed)[^\]]*\]$", re.IGNORECASE)
 
 
-def prompt_for(listing: str, questions: tuple[Question, ...] = QUESTIONS, version: int = PROMPT_VERSION) -> str:
-    """Version 1: the plain prompt. Version 2: clearer questions plus 7 worked examples."""
+def prompt_for(
+    listing: str,
+    questions: tuple[Question, ...] = QUESTIONS,
+    version: int = PROMPT_VERSION,
+    similar: list[LibraryExample] | None = None,
+) -> str:
+    """Version 1: the plain prompt. Version 2: clearer questions plus 7 worked examples.
+
+    similar (RAG): listings from the checked library that look like this one, with their correct answers.
+    """
     if version == 1:
         items = list(V1_QUESTIONS.items())
     else:
@@ -108,6 +117,16 @@ def prompt_for(listing: str, questions: tuple[Question, ...] = QUESTIONS, versio
         worked = (
             "Examples (answers not listed are no):\n"
             + "\n".join(f"- Listing: {text}\n  Yes: {', '.join(yes)}" for text, yes in EXAMPLES)
+            + "\n\n"
+        )
+    if similar:
+        worked += (
+            "Similar listings from a checked library, with their correct answers (answers not listed are no):\n"
+            + "\n".join(
+                f"- Listing: {ex.text}\n  Yes: {', '.join(ex.yes) or 'none'}"
+                + (f"\n  Unclear: {', '.join(ex.unclear)}" if ex.unclear else "")
+                for ex in similar
+            )
             + "\n\n"
         )
     return (
