@@ -1,2 +1,2 @@
 Winner: Qwen3.5 4B
-Qwen3.5 4B wins on scams caught (67/77 vs 49/77).
+Qwen3.5 4B wins on scams caught (62/74 vs 47/74).
