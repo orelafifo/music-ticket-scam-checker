@@ -29,7 +29,7 @@ In the order the user sees it in the app:
 1. **Asks for the artist first**, with suggestions as you type. This stops the artist's name being removed by mistake.
 2. **Asks where you found the tickets** (WhatsApp, Instagram, TikTok, X, Facebook, a forum, a website or other). Choosing **Other** lets you type the answer. Choosing **A website** asks for the link and checks whether the site looks fake or dodgy (see below).
 3. **Shows a tip:** "Try to capture ONLY the listing or chat", then takes the screenshot and lets you **crop** it.
-4. **Reads the text on this computer** with Qwen2.5-VL, a vision AI model run by the free Ollama app. Nothing is sent online. The model is only asked to copy the text out; it never judges it. Big screenshots are shrunk first, and the same screenshot is never read twice.
+4. **Reads the text on this computer** with Qwen3.5 4B, an AI model that can read images, run by the free Ollama app. Nothing is sent online. The model is only asked to copy the text out; it never judges it. Big screenshots are shrunk first, and the same screenshot is never read twice.
 5. **Removes personal details straight away**, before anything is shown or saved:
    - the top bar (where the other person's name and number sit) and the typing bar, trimmed off automatically before the model sees them (unless you crop the screenshot yourself)
    - timestamps ("14:32", "2h", "Yesterday") and app words ("Reply", "Like", "Seen", "Typing…", "Online")
@@ -85,15 +85,13 @@ pip install -r requirements-dev.txt
 
 Install **Ollama**, the free app that runs the reading model on your computer: download it from [ollama.com](https://ollama.com), open it, and it will sit in your menu bar.
 
-Then download the models (once): the reading model (about 3 GB) and the Step 2 model (about 4 GB):
-
-```bash
-ollama pull qwen2.5vl:3b
-```
+Then download the model (once, about 4 GB). Qwen3.5 4B reads the screenshots and answers the Step 2 questions:
 
 ```bash
 ollama pull qwen3.5:4b
 ```
+
+Qwen2.5-VL 3B (`ollama pull qwen2.5vl:3b`) is only needed to re-run the Step 2 model comparison.
 
 Ollama needs to be open whenever you use the app.
 
@@ -167,7 +165,7 @@ scam_checker/
   local_ai.py                  Talks to the Qwen model through Ollama (used for reading and for names)
   screenshot/
     image_prep.py              Open, crop, trim the app bars, shrink and fingerprint the image
-    ocr.py                     Read text with Qwen2.5-VL through Ollama; remember results so nothing is read twice
+    ocr.py                     Read text with Qwen3.5 4B through Ollama; remember results so nothing is read twice
   privacy/
     cleaner.py                 Runs every cleaning stage and counts what was removed
     clutter.py                 Timestamps and app words

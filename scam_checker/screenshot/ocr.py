@@ -1,4 +1,4 @@
-"""Read the text in a screenshot with Qwen2.5-VL, running on this computer through Ollama.
+"""Read the text in a screenshot with Qwen3.5 4B, running on this computer through Ollama.
 
 The model is only asked to copy out the text. It never judges anything: all
 cleaning and checking happens afterwards in ordinary, testable code.

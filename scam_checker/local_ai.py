@@ -1,7 +1,9 @@
 """Talk to the AI model running on this computer through Ollama.
 
 Ollama is a free app that runs AI models locally, so nothing sent here goes online.
-One model, Qwen2.5-VL, does two jobs: reading screenshots and spotting people's names.
+One model, Qwen3.5 4B, does all the AI jobs: reading screenshots, spotting people's names
+and answering the Step 2 questions. Thinking is off and temperature is 0, so the same
+screenshot always gets the same answer.
 """
 
 from __future__ import annotations
@@ -15,7 +17,7 @@ import requests
 from PIL import Image
 
 OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434")
-LOCAL_MODEL = os.getenv("OLLAMA_MODEL", "qwen2.5vl:3b")
+LOCAL_MODEL = os.getenv("OLLAMA_MODEL", "qwen3.5:4b")
 REPLY_TIMEOUT_SECONDS = 180  # the first request also loads the model, which is slow
 
 PostRequest = Callable[..., requests.Response]
@@ -36,7 +38,13 @@ class OllamaChat:
         if images:
             message["images"] = [image_to_base64(image) for image in images]
         # Temperature 0 means "always the most likely answer": no creative variation.
-        request_body = {"model": self.model, "messages": [message], "stream": False, "options": {"temperature": 0}}
+        request_body = {
+            "model": self.model,
+            "messages": [message],
+            "stream": False,
+            "think": False,  # answer straight away, no long reasoning
+            "options": {"temperature": 0},
+        }
         if json_reply:
             request_body["format"] = "json"  # Ollama then only allows valid JSON as the reply
         return self._send(request_body)
@@ -46,6 +54,9 @@ class OllamaChat:
             response = self._post(self._chat_url, json=request_body, timeout=REPLY_TIMEOUT_SECONDS)
         except requests.ConnectionError as error:
             raise LocalAIError("Ollama isn't running. Open the Ollama app, then try again.") from error
+        if response.status_code == 400 and "think" in response.text.lower() and "think" in request_body:
+            request_body.pop("think")  # this model has no thinking switch
+            return self._send(request_body)
         if response.status_code == 404:
             raise LocalAIError(f"The AI model isn't downloaded yet. In the terminal, run: ollama pull {self.model}")
         response.raise_for_status()
