@@ -66,13 +66,19 @@ def load_result(key: str) -> tuple[ModelResult, ScoringModel] | None:
             scams_total=report.scams_total,
             false_alarms=report.false_alarms,
             genuine_total=report.genuine_total,
-            valid_percent=summary["valid_percent"],
-            seconds_p50=summary["seconds_typical_p50"],
-            seconds_p95=summary["seconds_slow_case_p95"],
+            # Worked out from the music examples only, so every number uses the same 143 examples.
+            valid_percent=round(100 * sum(row["valid"] == "True" for row in rows) / len(rows), 1),
+            seconds_p50=percentile([float(row["seconds"]) for row in rows], 0.50),
+            seconds_p95=percentile([float(row["seconds"]) for row in rows], 0.95),
             energy_wh_per_check=round(energy * 1000, 3) if energy is not None else None,
         ),
         saved,
     )
+
+
+def percentile(values: list[float], share: float) -> float:
+    ordered = sorted(values)
+    return round(ordered[min(len(ordered) - 1, int(share * len(ordered)))], 2)
 
 
 def style(ax, title: str, xlabel: str) -> None:
