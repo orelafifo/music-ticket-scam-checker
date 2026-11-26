@@ -144,6 +144,8 @@ def main() -> None:
             file.flush()
             seconds.append(took)
             print(f"  {number}/{len(to_do)} {row['id']}  {took:.1f}s  {'ok' if result.valid else 'NOT VALID'}")
+            if not result.valid:
+                print(f"      problem: {'; '.join(result.problems[:4])}")
     energy_kwh = tracker.stop() if tracker else None  # codecarbon returns kg CO2; energy is on the tracker
 
     all_rows = read_rows(out_file)

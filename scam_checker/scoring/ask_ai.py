@@ -58,36 +58,42 @@ V1_QUESTIONS: dict[str, str] = {
 # (not taken from the practice or test data, so testing stays fair).
 EXAMPLES: tuple[tuple[str, tuple[str, ...]], ...] = (
     (
-        "Can't go any more, 2 x Blur tickets, Brixton Academy 12 March, face value £45 each, will transfer on Ticketmaster",  # noqa: E501
-        ("official_transfer", "price_given", "clear_details"),
+        "Can't go any more, 2 x Blur standing tickets, Brixton Academy 12 March, face value £45 each, will transfer on Ticketmaster",  # noqa: E501
+        ("official_transfer", "price_given"),
     ),
     (
         "Last 2 tickets!! DM me, bank transfer only, I'll send a screenshot to prove I have them",
-        ("move_to_private_chat", "bank_transfer", "screenshot_as_proof", "pressure_to_pay"),
+        ("move_to_private_chat", "bank_transfer", "screenshot_as_proof", "pressure_to_pay", "no_clear_details"),
     ),
     (
         "My mum's in hospital so I need to sell tonight, pay half now and I'll send them after",
-        ("sob_story", "part_payment", "pressure_to_pay", "pay_first"),
+        ("sob_story", "part_payment", "pressure_to_pay", "pay_first", "no_clear_details"),
     ),
     (
         "Selling 1 weekend camping ticket for Leeds Festival, paid £300, will take £280. "
         "I'll list it on Twickets so you're covered.",
-        ("official_transfer", "price_given", "clear_details"),
+        ("official_transfer", "price_given"),
     ),
     (
         "Saw you're looking for tickets! I have 2 standing for the Blur show, £90 each. The app won't let me "
         "transfer so send it to my partner's account and I'll email you the PDF.",
-        ("bank_transfer", "someone_elses_account", "pay_first", "pdf_or_screenshot_ticket", "price_given"),
+        (
+            "bank_transfer",
+            "someone_elses_account",
+            "pay_first",
+            "pdf_or_screenshot_ticket",
+            "price_given",
+        ),
     ),
     (
         "This is the Ticketmaster resale team: your 2 Blur tickets are reserved. Confirm within 1 hour by paying "
         "£96 to the account below.",
-        ("fake_official", "pressure_to_pay", "pay_first", "bank_transfer", "price_given"),
+        ("fake_official", "pressure_to_pay", "pay_first", "bank_transfer", "price_given", "no_clear_details"),
     ),
     (
         "Selling 2 paper tickets for Blur at Brixton Academy, 14 March, row G. Paid £50 each, will take £40 each. "
         "Can post them recorded delivery.",
-        ("price_given", "clear_details"),
+        ("price_given",),
     ),
 )
 
@@ -121,7 +127,9 @@ def prompt_for(
         )
     if similar:
         worked += (
-            "Similar listings from a checked library, with their correct answers (answers not listed are no):\n"
+            "Similar listings from a checked library, with their correct answers (answers not listed are no). "
+            "They only show how to apply the questions: answer from the listing between the markers only. "
+            "If something is not in that listing (for example a price), the answer is no.\n"
             + "\n".join(
                 f"- Listing: {ex.text}\n  Yes: {', '.join(ex.yes) or 'none'}"
                 + (f"\n  Unclear: {', '.join(ex.unclear)}" if ex.unclear else "")
@@ -158,6 +166,7 @@ class AIAnswers:
     answers: dict[str, str] = field(default_factory=dict)
     valid: bool = False  # True only if every question got yes / no / unclear
     raw_reply: str = ""
+    problems: list[str] = field(default_factory=list)  # what was wrong, if not valid
 
 
 def parse_reply(reply: str, questions: tuple[Question, ...] = QUESTIONS) -> AIAnswers:
@@ -168,10 +177,15 @@ def parse_reply(reply: str, questions: tuple[Question, ...] = QUESTIONS) -> AIAn
         data = json.loads(reply[start:end])
     except ValueError:
         data = {}
-    valid = isinstance(data, dict) and bool(data)
+    has_json = isinstance(data, dict) and bool(data)
+    valid = has_json
+    if not has_json:
+        result.problems.append("no JSON in the reply")
     for question in questions:
         value = str(data.get(question.id, "")).strip().lower() if isinstance(data, dict) else ""
         if value not in ANSWERS:
+            if has_json:
+                result.problems.append(f"{question.id}: {repr(value)[:30] if value else 'missing'}")
             valid, value = False, "unclear"
         result.answers[question.id] = value
     result.valid = valid

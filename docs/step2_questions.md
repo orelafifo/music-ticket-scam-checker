@@ -43,6 +43,8 @@ Changes made after the first comparison, to cut false alarms and catch fake 'off
 |---|---|
 | Sad story (10) | Any personal story or reason (illness, family, a baby, exams, work, money); a plain "can't go any more" is no |
 | Bank transfer (1) | No if only offered as an option next to an official transfer or protected payment |
+| No clear details (14) | Yes if none of seat, row, section, standing or festival ticket type is given; any one is enough for no; a date and venue alone is still yes (26 Nov) |
+| **Removed: specific details (21)** | 26 Nov: with the new meaning it was the exact opposite of no clear details, and the AI often left it out of its reply. 21 questions now |
 | Official transfer (18) | Yes if they mention transferring through Ticketmaster, AXS, DICE, See Tickets, Twickets, or the venue's or festival's own resale |
 | Other unprotected payment (3) | Not bank transfer (a separate question) |
 | Screenshot as proof (12) | Only when offered as proof, not as the ticket itself |

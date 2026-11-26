@@ -5,8 +5,8 @@
 A prototype that checks screenshots of music ticket listings and chats for signs of a scam.
 It is designed to sit inside a banking app, so people can check before they pay a stranger for tickets.
 
-> **Status:** Step 1 is built and in the app. Step 2 (questions and scoring) is built and being
-> tested; the app does not show a verdict yet.
+> **Status:** Steps 1 to 3 are built and in the app, which now shows a verdict with reasons.
+> Next: testing the full checker on screenshots, then the final test on the locked test set.
 
 ---
 
@@ -15,8 +15,8 @@ It is designed to sit inside a banking app, so people can check before they pay 
 | Step | What happens | Status |
 |---|---|---|
 | **1. Read and clean** | Read the text in the screenshot on this computer, then remove names, numbers, timestamps and app clutter | ✅ Built |
-| 2. Ask questions | A small AI model on this computer answers 20 fixed yes/no questions, e.g. "Does it ask for a bank transfer?" | Built, being tested |
-| 3. Score | Logistic regression turns the answers, plus the Step 1 answers, into a verdict with reasons | Built, not in the app yet |
+| **2. Ask questions** | Qwen3.5 4B on this computer answers 21 fixed yes/no questions, e.g. "Does it ask for a bank transfer?", with 3 similar checked listings in the prompt (RAG) | ✅ Built |
+| **3. Score** | Logistic regression turns the answers, plus the Step 1 answers, into a verdict with reasons | ✅ Built |
 
 The AI model only *reads* the text. It never makes the final decision.
 
@@ -162,6 +162,7 @@ Every push to GitHub also runs the code-style checks (ruff) and the quick tests 
 app.py                         The Streamlit app (only screens and buttons, no checking logic)
 scam_checker/
   step1.py                     Runs Step 1 from start to finish
+  step2.py                     Runs Steps 2 and 3 in the app: questions with RAG, then the verdict
   local_ai.py                  Talks to the Qwen model through Ollama (used for reading and for names)
   screenshot/
     image_prep.py              Open, crop, trim the app bars, shrink and fingerprint the image

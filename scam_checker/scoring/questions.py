@@ -5,9 +5,11 @@ sign (a "yes" points towards a genuine sale). The scoring step learns how much
 each one matters, but it is told this direction so it can warn if the data
 disagrees.
 
-22 questions (18 red flags, 4 good signs), each with a source. Approved by Orela
+21 questions (18 red flags, 3 good signs), each with a source. Approved by Orela
 on 23 Nov 2026; clearer wording, clear_details and fake_official added 24 Nov 2026 (prompt
-version 2, Step 2 context engineering). See docs/step2_questions.md.
+version 2, Step 2 context engineering). clear_details removed 26 Nov 2026: once "specific
+details" meant a seat, row, section, standing or ticket type, it was the exact opposite of
+no_clear_details and the AI often skipped it. See docs/step2_questions.md.
 """
 
 from __future__ import annotations
@@ -151,8 +153,11 @@ QUESTIONS: tuple[Question, ...] = (
     ),
     Question(
         id="no_clear_details",
-        text="Does the seller avoid giving clear details (date, venue, seats, booking confirmation)?",
-        reason="The seller doesn't give clear ticket details.",
+        text=(
+            "Is the listing missing the seat, row, section, standing or festival ticket type? "
+            "If any one of them is given, answer no. A date and venue alone still counts as missing."
+        ),
+        reason="The seller doesn't give specific ticket details, such as the seat or whether it's standing.",
         direction=Direction.RED_FLAG,
         source="Take Five: https://www.takefive-stopfraud.org.uk/protect-yourself/ticket-scams/",
     ),
@@ -217,13 +222,6 @@ QUESTIONS: tuple[Question, ...] = (
         reason="A price is given openly.",
         direction=Direction.GOOD_SIGN,
         source="Linked to Take Five's clear details sign (judgement call): https://www.takefive-stopfraud.org.uk/protect-yourself/ticket-scams/",  # noqa: E501
-    ),
-    Question(
-        id="clear_details",
-        text="Does the seller give specific ticket details (date, venue, section, row or seat)?",
-        reason="The seller gives specific ticket details.",
-        direction=Direction.GOOD_SIGN,
-        source="Take Five (clear booking details, seat information): https://www.takefive-stopfraud.org.uk/protect-yourself/ticket-scams/",  # noqa: E501
     ),
 )
 

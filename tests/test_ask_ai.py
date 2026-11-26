@@ -72,10 +72,10 @@ def test_prompt_version_1_is_kept_and_version_2_adds_examples():
     from scam_checker.scoring.ask_ai import EXAMPLES, V1_QUESTIONS
 
     v1, v2 = prompt_for("2 tickets", version=1), prompt_for("2 tickets", version=2)
-    assert "- Listing:" not in v1 and '"clear_details"' not in v1
+    assert "- Listing:" not in v1 and '"fake_official"' not in v1
     assert len(V1_QUESTIONS) == 20 and v1.count('": ') >= 20
     assert v2.count("- Listing:") == len(EXAMPLES) == 7
-    assert '"clear_details"' in v2
+    assert '"fake_official"' in v2 and '"clear_details"' not in v2
 
 
 def test_example_answers_only_use_real_question_ids():
@@ -83,3 +83,12 @@ def test_example_answers_only_use_real_question_ids():
 
     for _, yes in EXAMPLES:
         assert set(yes) <= set(QUESTION_IDS)
+
+
+def test_not_valid_reply_says_what_was_wrong():
+    reply = json.dumps({q: "no" for q in QUESTION_IDS if q != "price_given"} | {"very_cheap": "n/a"})
+    result = parse_reply(reply)
+    assert not result.valid
+    assert "price_given: missing" in result.problems
+    assert any(p.startswith("very_cheap: 'n/a'") for p in result.problems)
+    assert parse_reply("sorry, I can't").problems == ["no JSON in the reply"]

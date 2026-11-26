@@ -1,13 +1,15 @@
-"""Music Ticket Scam Checker - Step 1 app.
+"""Music Ticket Scam Checker app.
 
 Run with:  streamlit run app.py
 
 Step 1 reads a screenshot, removes personal details and collects context.
-It does not give a scam verdict yet; that arrives in Step 2.
+Step 2 asks the AI the yes/no questions about the cleaned text, scores the
+answers together with the Step 1 answers, and shows the verdict with reasons.
 """
 
 from __future__ import annotations
 
+import hashlib
 import sys
 from datetime import date
 
@@ -33,9 +35,14 @@ from scam_checker.local_ai import LocalAIError
 from scam_checker.privacy.ai_names import OllamaNameFinder
 from scam_checker.privacy.cleaner import CleaningReport
 from scam_checker.privacy.names import CachedNameFinder, CombinedNameFinder, NameFinder, SpacyNameFinder
+from scam_checker.scoring.ask_ai import AIAnswers, OllamaAsker
+from scam_checker.scoring.library import Library
+from scam_checker.scoring.questions import QUESTION_IDS
+from scam_checker.scoring.scorer import ScoringModel, Verdict
 from scam_checker.screenshot.image_prep import CropBox, crop_image, fingerprint, open_image
 from scam_checker.screenshot.ocr import CachedTextReader, OllamaVisionReader
 from scam_checker.step1 import Step1Result, read_and_clean_screenshot
+from scam_checker.step2 import SCORING_FILE, STEP2_MODEL, answer_questions, check_listing
 
 load_dotenv()  # reads the optional Google Safe Browsing key from a local .env file
 
@@ -60,6 +67,21 @@ def shared_spacy_finder() -> SpacyNameFinder:
 @st.cache_resource(show_spinner=False)
 def shared_ai_name_finder() -> OllamaNameFinder:
     return OllamaNameFinder()
+
+
+@st.cache_resource(show_spinner=False)
+def shared_asker() -> OllamaAsker:
+    return OllamaAsker(STEP2_MODEL)
+
+
+@st.cache_resource(show_spinner=False)
+def shared_library() -> Library:
+    return Library.load()
+
+
+@st.cache_resource(show_spinner=False)
+def shared_scoring() -> ScoringModel | None:
+    return ScoringModel.load(SCORING_FILE) if SCORING_FILE.exists() else None
 
 
 # Public records about a website change slowly, so each is looked up at most once a day.
@@ -101,7 +123,7 @@ def session_name_finder() -> NameFinder:
 
 def show_header() -> None:
     st.title("🎟️ Music Ticket Scam Checker")
-    st.caption("Step 1 of the checker: read your screenshot and remove personal details. No verdict yet.")
+    st.caption("Upload a screenshot of a ticket listing or chat, answer a few questions, and get a scam check.")
 
 
 def ask_for_artist() -> str:
@@ -252,7 +274,7 @@ def ask_about_seller_account() -> SellerAccount:
     return SellerAccount(follower_count=followers, account_age_months=age_months)
 
 
-def show_developer_view(result: Step1Result) -> None:
+def show_developer_view(result: Step1Result, answers: AIAnswers | None, verdict: Verdict | None) -> None:
     if not DEVELOPER_MODE:
         return
     st.divider()
@@ -261,6 +283,69 @@ def show_developer_view(result: Step1Result) -> None:
     st.text_area("Raw reading", "\n".join(session_text_reader().latest_lines), disabled=True, height=150)
     st.caption("Developer mode: what Step 1 hands to Step 2")
     st.json(result.to_dict(), expanded=False)
+    if answers is not None and verdict is not None:
+        st.caption(
+            f"Developer mode: scam score {verdict.scam_probability} (warning level {shared_scoring().warning_level})"
+        )
+        st.json({q: a for q, a in answers.answers.items() if a != "no"}, expanded=False)
+
+
+def ai_answers_for(cleaned_text: str) -> AIAnswers:
+    """The AI's answers depend only on the cleaned text, so each text is asked once per visitor."""
+    stored = st.session_state.setdefault("ai_answers", {})
+    if cleaned_text not in stored:
+        with st.spinner("Checking the listing (this takes about 15 seconds)..."):
+            stored[cleaned_text] = answer_questions(cleaned_text, shared_asker(), shared_library())
+    return stored[cleaned_text]
+
+
+RISK_ICONS = {"High": "🔴", "Medium": "🟠", "Low": "🟢"}
+
+
+def show_verdict(result: Step1Result) -> tuple[AIAnswers | None, Verdict | None]:
+    st.divider()
+    scoring = shared_scoring()
+    if scoring is None or scoring.question_ids != list(QUESTION_IDS):
+        st.error(
+            "The scoring isn't saved yet, or was saved for older questions. In the terminal run: "
+            "python scripts/train_scoring.py --answers data/step2/answers_qwen_rag.csv --cost-false-alarm 20"
+        )
+        return None, None
+    text_id = hashlib.sha256(result.cleaned_text.encode()).hexdigest()
+    if st.button("Check for scams", type="primary"):
+        st.session_state.text_to_check = text_id
+    if st.session_state.get("text_to_check") != text_id:
+        st.caption("Answer the questions above, then press Check for scams.")
+        return None, None
+    try:
+        answers = ai_answers_for(result.cleaned_text)
+    except LocalAIError as problem:
+        st.error(str(problem))
+        return None, None
+    # Changing an answer above updates the verdict straight away: only the AI step is slow.
+    check = check_listing(result, answers, scoring)
+    verdict = check.verdict
+    headline = f"{RISK_ICONS[check.risk]} {check.risk} risk: {check.score_percent}%"
+    if check.risk == "High":
+        st.error(f"### {headline}\nThis looks like a scam. Don't pay until you've read the points below.")
+    elif check.risk == "Medium":
+        st.warning(f"### {headline}\nThere are some warning signs. Check the points below before you pay.")
+    else:
+        st.success(f"### {headline}\nNo strong scam signs found.")
+    st.caption(f"Scam risk score from the warning signs found. A warning is given from {scoring.warning_level:.0%}.")
+    for reason in check.forced_by:
+        st.caption(f"High risk because: {reason} This always gives a warning.")
+    if verdict.reasons:
+        st.markdown("**Warning signs:**\n" + "\n".join(f"- 🚩 {reason}" for reason in verdict.reasons))
+    if verdict.good_signs:
+        st.markdown("**Good signs:**\n" + "\n".join(f"- ✅ {sign}" for sign in verdict.good_signs))
+    for tip in verdict.tips:
+        st.info(f"💡 {tip}")
+    if check.next_steps:
+        st.markdown("**What to do next:**\n" + "\n".join(f"{n}. {step}" for n, step in enumerate(check.next_steps, 1)))
+    if check.risk != "High":
+        st.caption("This check isn't a guarantee.")
+    return answers, verdict
 
 
 # --- the page ----------------------------------------------------------------
@@ -300,19 +385,19 @@ def main() -> None:
     final_text, report = screenshot_result
     event = check_event(artist, final_text)
     seller_answer, seller_source = ask_how_seller_was_found()
-    show_developer_view(
-        Step1Result(
-            artist=artist,
-            where_found=where_found,
-            cleaned_text=final_text,
-            removed_counts=dict(report.removed_counts),
-            link=link,
-            seller_source_answer=seller_answer,
-            seller_source=seller_source,
-            seller_account=ask_about_seller_account(),
-            event=event,
-        )
+    result = Step1Result(
+        artist=artist,
+        where_found=where_found,
+        cleaned_text=final_text,
+        removed_counts=dict(report.removed_counts),
+        link=link,
+        seller_source_answer=seller_answer,
+        seller_source=seller_source,
+        seller_account=ask_about_seller_account(),
+        event=event,
     )
+    answers, verdict = show_verdict(result)
+    show_developer_view(result, answers, verdict)
 
 
 if __name__ == "__main__":

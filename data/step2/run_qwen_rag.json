@@ -4,10 +4,10 @@
   "rag": true,
   "examples_answered": 143,
   "valid_percent": 99.3,
-  "seconds_typical_p50": 13.48,
-  "seconds_slow_case_p95": 16.22,
-  "seconds_mean_this_session": 13.48,
+  "seconds_typical_p50": 12.96,
+  "seconds_slow_case_p95": 16.04,
+  "seconds_mean_this_session": 13.49,
   "where_it_runs": "this computer",
-  "energy_kwh_per_check": 5.9e-05,
-  "co2_grams_per_check": 0.0128
+  "energy_kwh_per_check": 4.5e-05,
+  "co2_grams_per_check": 0.0097
 }
