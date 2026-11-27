@@ -1,71 +1,94 @@
-"""Next steps for the user, based on the warning signs found.
+"""What to do next, based on the warning signs found and the risk level.
 
-Advice follows Take Five (https://www.takefive-stopfraud.org.uk/protect-yourself/ticket-scams/)
-and Report Fraud, which replaced Action Fraud in December 2025
-(https://www.reportfraud.police.uk, 0300 123 2040).
+Each step says how to do it, the most important come first, and at most 4 are shown,
+followed by a closing line that fits the risk level. Advice follows Take Five
+(https://www.takefive-stopfraud.org.uk/protect-yourself/ticket-scams/) and Report Fraud,
+which replaced Action Fraud in December 2025 (https://www.reportfraud.police.uk, 0300 123 2040).
 """
 
 from __future__ import annotations
 
-from .scoring.scorer import Verdict
 from .scoring.step1_signals import Step1Signals
 
-PAY_SAFELY = "Only pay with PayPal Goods and Services or a credit card, so you can get your money back. Never pay into someone else's account."  # noqa: E501
-OFFICIAL_TRANSFER = "Ask the seller to transfer the tickets through the official app (Ticketmaster, AXS or DICE) or to list them on Twickets, before you pay."  # noqa: E501
-CHECK_DETAILS = "Ask for the date, venue, section and row, and check them against the official event."
-AVOID_SITE = "Don't use this website. Buy from the official ticket seller instead, typing its address yourself."
-CHECK_SELLER = "Keep the chat where you found the seller, and check their profile: how old the account is, followers and past posts."  # noqa: E501
+MAX_STEPS = 4
 
-# Each warning sign (an AI question or a Step 1 signal) and the advice it leads to. Several signs can share one.
-ADVICE: dict[str, str] = {
-    "bank_transfer": PAY_SAFELY,
-    "friends_and_family": PAY_SAFELY,
-    "other_unprotected_payment": PAY_SAFELY,
-    "someone_elses_account": PAY_SAFELY,
-    "pay_first": OFFICIAL_TRANSFER,
-    "part_payment": OFFICIAL_TRANSFER,
-    "meet_outside_venue": OFFICIAL_TRANSFER,
-    "screenshot_as_proof": "Screenshots and photos are easy to fake, so they don't prove the seller has the tickets.",
-    "pdf_or_screenshot_ticket": "Many venues won't accept PDF or screenshot tickets. Ask for an official app transfer instead.",  # noqa: E501
-    "pressure_to_pay": "Take your time. A genuine seller won't mind you checking first.",
-    "asks_for_more_money": "Don't pay any extra fees after agreeing a price. Stop and don't send more money.",
-    "very_cheap": "Be wary of tickets far below face value, especially for sold-out shows.",
-    "sob_story": "Don't let a personal story rush you into paying.",
-    "move_to_private_chat": CHECK_SELLER,
-    "no_clear_details": CHECK_DETAILS,
-    "refuses_call": "Be wary of a seller who won't talk on the phone or by video.",
-    "giveaway": "Real giveaways never ask you to pay a fee.",
-    "fake_official": "Ticket companies don't ask you to pay by message. Open their official app or website yourself, and don't use links in messages.",  # noqa: E501
-    "seller_source: open_group_chat": CHECK_SELLER,
-    "seller_source: stranger_messaged_first": CHECK_SELLER,
-    "seller_source: random_comment": CHECK_SELLER,
-    "seller_source: strangers_post": CHECK_SELLER,
-    "new_account": CHECK_SELLER,
-    "few_followers": CHECK_SELLER,
-    "event_mismatch": "Check the date and venue on the artist's or venue's official website.",
-    "event_not_found": "Check the event exists on the artist's or venue's official website.",
-    "before_on_sale": "Tickets can't be resold before they go on general sale. Wait for the official sale.",
-    "format_mismatch": "This event uses app tickets only, so a PDF or screenshot ticket won't get you in.",
-    "on_blocklist": AVOID_SITE,
-    "lookalike_site": AVOID_SITE,
-    "new_website": AVOID_SITE,
+CHECK_EVENT = "Check the date and venue on the artist's or venue's official website before you go any further."
+AVOID_SITE = "Don't buy from this website. Type the official ticket seller's address yourself and buy there instead."
+FAKE_OFFICIAL = (
+    "Ticket companies don't ask you to pay by message or through a link. Open their official app or website "
+    "yourself to check."
+)
+PAY_SAFELY = (
+    "Only pay with PayPal Goods and Services or a credit card, so you can get your money back. "
+    "Never pay by bank transfer to a stranger, or into someone else's account."
+)
+OFFICIAL_TRANSFER = (
+    "Ask the seller to transfer the tickets on the official app (Ticketmaster, AXS or DICE) or list them on "
+    "Twickets, and wait until the tickets are in your app before you pay."
+)
+NOT_FILE_TICKETS = (
+    "Don't accept a PDF, screenshot or photo of a ticket: they're easy to fake and often won't get you in. "
+    "Ask for an app transfer instead."
+)
+CHECK_SELLER = (
+    "Check the seller's profile: a real account usually has an older join date, real photos, past posts and "
+    'friends or followers you recognise. Search their name or handle with the word "scam".'
+)
+NO_RUSH = 'Don\'t let a deadline, a sad story or "other buyers" rush you. A genuine seller will wait while you check.'
+CHECK_DETAILS = (
+    "Ask for the block, row and seat (or standing), and check they exist for this event on the official site."
+)
+NO_EXTRA_FEES = "Don't pay any extra fee after agreeing a price. That's a common scam trick."
+CALL_THEM = "Ask for a quick video call, and check the seller can show the tickets in their official app."
+REAL_GIVEAWAYS = "Real giveaways never ask you to pay a fee or share your bank details."
+
+# Most important first. Each warning sign (an AI question or a Step 1 signal) leads to one piece of advice.
+PRIORITY: list[tuple[str, set[str]]] = [
+    (CHECK_EVENT, {"event_mismatch", "event_not_found", "before_on_sale"}),
+    (AVOID_SITE, {"on_blocklist", "lookalike_site", "new_website", "risky_web_ending"}),
+    (FAKE_OFFICIAL, {"fake_official"}),
+    (PAY_SAFELY, {"bank_transfer", "friends_and_family", "other_unprotected_payment", "someone_elses_account"}),
+    (OFFICIAL_TRANSFER, {"pay_first", "part_payment", "meet_outside_venue"}),
+    (NOT_FILE_TICKETS, {"pdf_or_screenshot_ticket", "screenshot_as_proof", "format_mismatch"}),
+    (NO_EXTRA_FEES, {"asks_for_more_money"}),
+    (NO_RUSH, {"pressure_to_pay", "sob_story", "very_cheap"}),
+    (
+        CHECK_SELLER,
+        {
+            "move_to_private_chat",
+            "new_account",
+            "few_followers",
+            "seller_source: open_group_chat",
+            "seller_source: stranger_messaged_first",
+            "seller_source: random_comment",
+        },
+    ),
+    (CHECK_DETAILS, {"no_clear_details"}),
+    (CALL_THEM, {"refuses_call"}),
+    (REAL_GIVEAWAYS, {"giveaway"}),
+]
+
+CLOSING = {
+    "High": (
+        "If you're unsure, don't pay. Buy from the official seller or its resale site instead. If you've already "
+        "paid, contact your bank straight away and report it to Report Fraud (reportfraud.police.uk, 0300 123 2040)."
+    ),
+    "Medium": "If anything doesn't add up, don't pay until you've checked the points above.",
+    "Low": "This looks OK. Still pay with a protected method, and keep the messages until after the event.",
 }
-IF_PAID = "If you've already paid, contact your bank straight away, then report it to Report Fraud at reportfraud.police.uk or on 0300 123 2040."  # noqa: E501
 
 
-def next_steps(answers: dict[str, str], signals: Step1Signals, verdict: Verdict) -> list[str]:
-    """Plain next steps, most important first, with no repeats."""
-    found = [question for question, answer in answers.items() if answer == "yes"]
-    found += [signal.id for signal in signals.found]
-    steps: list[str] = []
-    for sign in found:
-        advice = ADVICE.get(sign)
-        if advice and advice not in steps:
-            steps.append(advice)
+def next_steps(answers: dict[str, str], signals: Step1Signals, risk: str) -> list[str]:
+    """Up to 4 steps, most important first. Low risk only gets the basic protections."""
+    found = {question for question, answer in answers.items() if answer == "yes"}
+    found |= {signal.id for signal in signals.found}
+    steps = [advice for advice, signs in PRIORITY if risk != "Low" and found & signs]
     if answers.get("official_transfer") != "yes" and OFFICIAL_TRANSFER not in steps:
         steps.append(OFFICIAL_TRANSFER)
     if answers.get("protected_payment") != "yes" and PAY_SAFELY not in steps:
         steps.append(PAY_SAFELY)
-    if verdict.warning:
-        steps.append(IF_PAID)
-    return steps
+    return steps[:MAX_STEPS]
+
+
+def closing_line(risk: str) -> str:
+    return CLOSING[risk]

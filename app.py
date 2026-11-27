@@ -24,11 +24,12 @@ from scam_checker.context.event_check import check_event as look_up_event
 from scam_checker.context.event_details import read_event_details
 from scam_checker.context.link_check import LinkReport, WebsiteLookups, check_link
 from scam_checker.context.seller import (
+    ANSWER_TIP,
     EXAMPLE_ANSWERS,
-    QUICK_PICKS,
     KeywordSourceCategoriser,
     SellerAccount,
     SellerSource,
+    months_since,
 )
 from scam_checker.context.where_found import OTHER, WEBSITE, WHERE_FOUND_OPTIONS
 from scam_checker.local_ai import LocalAIError
@@ -164,6 +165,9 @@ def ask_for_link() -> LinkReport | None:
         report = check_link(link, CACHED_LOOKUPS)
     for note in report.notes:
         st.markdown(f"- {note}")
+    if DEVELOPER_MODE:
+        for note in report.developer_notes:
+            st.caption(f"Developer mode: {note}")
     return report
 
 
@@ -246,14 +250,11 @@ def show_event_result(report: EventReport) -> None:
 
 def ask_how_seller_was_found() -> tuple[str, SellerSource]:
     st.subheader("5. How did you come across this seller?")
-    quick_pick = st.pills("Quick pick", list(QUICK_PICKS))
-    answer = st.text_input("Or describe it in your own words", placeholder="e.g. " + EXAMPLE_ANSWERS[0])
-    st.caption("Examples: " + " · ".join(EXAMPLE_ANSWERS))
-    if answer.strip():
-        source = KeywordSourceCategoriser().categorise(answer)
-    else:
-        source = QUICK_PICKS.get(quick_pick, SellerSource.UNKNOWN)
-    return answer.strip() or (quick_pick or ""), source
+    answer = st.text_input("Describe it in your own words", placeholder="e.g. " + EXAMPLE_ANSWERS[0])
+    st.caption(f"💡 Tip: {ANSWER_TIP}")
+    st.caption("Examples: " + " · ".join(f'"{example}"' for example in EXAMPLE_ANSWERS))
+    source = KeywordSourceCategoriser().categorise(answer) if answer.strip() else SellerSource.UNKNOWN
+    return answer.strip(), source
 
 
 def ask_number_or_not_available(column, label: str, key: str) -> int | None:
@@ -268,9 +269,15 @@ def ask_number_or_not_available(column, label: str, key: str) -> int | None:
 def ask_about_seller_account() -> SellerAccount:
     st.subheader("6. About the seller's account")
     st.caption("If not shown or available, tick N/A.")
+    followers = ask_number_or_not_available(st, "Follower count", "followers")
+    st.markdown('When did the account join? Most apps show this, e.g. "Joined March 2024".')
     left, right = st.columns(2)
-    followers = ask_number_or_not_available(left, "Follower count", "followers")
-    age_months = ask_number_or_not_available(right, "Account age (months)", "account-age")
+    month = left.selectbox("Month", ["Not shown", *MONTH_NAMES], key="joined-month")
+    year = right.selectbox("Year", ["Not shown", *range(date.today().year, 2005, -1)], key="joined-year")
+    age_months = None
+    if year != "Not shown":
+        month_number = None if month == "Not shown" else MONTH_NAMES.index(month) + 1
+        age_months = months_since(int(year), month_number, date.today())
     return SellerAccount(follower_count=followers, account_age_months=age_months)
 
 
@@ -300,6 +307,20 @@ def ai_answers_for(cleaned_text: str) -> AIAnswers:
 
 
 RISK_ICONS = {"High": "🔴", "Medium": "🟠", "Low": "🟢"}
+MONTH_NAMES = [
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December",
+]  # noqa: E501
 
 
 def show_verdict(result: Step1Result) -> tuple[AIAnswers | None, Verdict | None]:
@@ -335,16 +356,16 @@ def show_verdict(result: Step1Result) -> tuple[AIAnswers | None, Verdict | None]
     st.caption(f"Scam risk score from the warning signs found. A warning is given from {scoring.warning_level:.0%}.")
     for reason in check.forced_by:
         st.caption(f"High risk because: {reason} This always gives a warning.")
+    # One sign per line, with the emoji as the bullet.
     if verdict.reasons:
-        st.markdown("**Warning signs:**\n" + "\n".join(f"- 🚩 {reason}" for reason in verdict.reasons))
+        st.markdown("**Warning signs:**  \n" + "  \n".join(f"🚩 {reason}" for reason in verdict.reasons))
     if verdict.good_signs:
-        st.markdown("**Good signs:**\n" + "\n".join(f"- ✅ {sign}" for sign in verdict.good_signs))
+        st.markdown("**Good signs:**  \n" + "  \n".join(f"✅ {sign}" for sign in verdict.good_signs))
     for tip in verdict.tips:
         st.info(f"💡 {tip}")
     if check.next_steps:
         st.markdown("**What to do next:**\n" + "\n".join(f"{n}. {step}" for n, step in enumerate(check.next_steps, 1)))
-    if check.risk != "High":
-        st.caption("This check isn't a guarantee.")
+    st.markdown(f"**{check.closing}**")
     return answers, verdict
 
 

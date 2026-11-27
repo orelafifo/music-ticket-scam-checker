@@ -105,3 +105,19 @@ def test_many_ways_of_writing_a_date():
 def test_prices_and_counts_are_not_read_as_dates():
     assert read_event_details("2 tickets £85.50 each, 15 people interested", TODAY).event_date is None
     assert read_event_details("Selling 2 tickets for 9 April, 15 tickets left", TODAY).event_date == date(2027, 4, 9)
+
+
+def test_a_year_on_its_own_is_not_a_date():
+    text = "selling 1 x Reading Festival 2027 weekend camping ticket, paid £326. READING 2027"
+    assert read_event_details(text, TODAY).event_date is None
+
+
+def test_festival_dates_count_for_every_day_of_the_festival():
+    reading = [OfficialEvent(date(2027, 8, 25), "Richfield Avenue")]
+    for day in (25, 26, 29):
+        report = check_event(
+            "Reading Festival", event_date=date(2027, 8, day), today=TODAY, sources=fake_source(reading)
+        )
+        assert report.details_match, day
+    gig = check_event("Olivia Rodrigo", "The O2", date(2027, 4, 11), TODAY, fake_source(TOUR))
+    assert gig.mismatch  # a normal gig still has to match exactly

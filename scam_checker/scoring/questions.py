@@ -53,8 +53,8 @@ QUESTIONS: tuple[Question, ...] = (
     Question(
         id="other_unprotected_payment",
         text=(
-            "Does the seller ask for another payment with no protection (gift cards, crypto, Western Union, cash sent "
-            "in advance)? Not bank transfer: that is a separate question."
+            "Does the seller ask for gift cards, crypto, a money transfer service (e.g. Western Union) or cash sent "
+            "before you get the tickets? If the only payment asked for is a bank transfer, answer no."
         ),
         reason="The seller wants a payment that can't be refunded (gift cards, crypto, money transfer or cash).",
         direction=Direction.RED_FLAG,

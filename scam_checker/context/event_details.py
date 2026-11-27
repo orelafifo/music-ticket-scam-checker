@@ -40,6 +40,8 @@ _MONTH = (
 _DAY = r"(?P<day>[0-3]?\d)(?:st|nd|rd|th)?"
 _YEAR = r"(?P<year>20\d\d|'?\d\d)"
 _SEP = r"[\s,/.'-]+"
+_ANY_MONTH = _MONTH.replace("(?P<month>", "(?:")
+HAS_DAY_AND_MONTH = re.compile(rf"\d.*{_ANY_MONTH}|{_ANY_MONTH}.*\d|\b\d{{1,2}}[/.-]\d{{1,2}}\b", re.IGNORECASE)
 # The ways people write dates in listings, most reliable first. All read as UK dates (day before month).
 DATE_PATTERNS = [
     re.compile(r"\b(?P<year>20\d\d)-(?P<month>\d{1,2})-(?P<day>\d{1,2})\b"),  # 2027-04-09
@@ -125,7 +127,9 @@ def find_date(text: str, today: date) -> date | None:
     nlp = _spacy()
     if nlp is not None:
         for entity in nlp(text).ents:
-            if entity.label_ == "DATE":
+            # A usable date needs a day and a month: "2027 weekend" on its own isn't a date (it was
+            # read as 1 January 2027, 27 Nov 2026).
+            if entity.label_ == "DATE" and HAS_DAY_AND_MONTH.search(entity.text):
                 found = parse_date(entity.text, today)
                 if found:
                     return found

@@ -76,7 +76,14 @@ VENUE_WORDS = {
     "emirates stadium",
     "london stadium",
 }
-PROTECTED_WORDS = PAYMENT_WORDS | PLATFORM_WORDS | VENUE_WORDS
+# Ordinary listing words the name finder sometimes mistakes for names
+# (e.g. "Sold" in "Sold out everywhere else" became [name], 27 Nov 2026).
+LISTING_WORDS = {
+    "sold", "selling", "sale", "ticket", "tickets", "standing", "seated", "pitch", "block", "row", "seat",
+    "festival", "gig", "concert", "tour", "price", "face value", "resale", "official", "guaranteed", "entry",
+    "weekend", "camping", "available", "transfer", "wristband", "vip", "golden circle", "secure", "checkout",
+}  # fmt: skip
+PROTECTED_WORDS = PAYMENT_WORDS | PLATFORM_WORDS | VENUE_WORDS | LISTING_WORDS
 
 _PROTECTED_PATTERN = re.compile(
     r"\b(" + "|".join(sorted((re.escape(word) for word in PROTECTED_WORDS), key=len, reverse=True)) + r")\b",

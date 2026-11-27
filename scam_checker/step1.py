@@ -27,6 +27,9 @@ def read_and_clean_screenshot(
     artist: str,
     remove_bars: bool,
 ) -> CleaningReport:
+    # Phone screenshots (taller than wide) have status and navigation bars to cut off. Website
+    # screenshots don't, and cutting them can remove part of the listing (e.g. a "high demand" banner).
+    remove_bars = remove_bars and image.height > image.width
     if remove_bars:
         image = trim_app_bars(image)
     # Trimmed and untrimmed versions of one screenshot are cached separately.

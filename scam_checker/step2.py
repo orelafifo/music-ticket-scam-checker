@@ -16,7 +16,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from .advice import next_steps
+from .advice import closing_line, next_steps
 from .local_ai import LocalAIError
 from .scoring.ask_ai import AIAnswers, OllamaAsker, parse_reply, prompt_for
 from .scoring.library import Library
@@ -53,6 +53,7 @@ class CheckResult:
     score_percent: int
     forced_by: list[str] = field(default_factory=list)  # reasons that always give a warning (event check, blocklist)
     next_steps: list[str] = field(default_factory=list)
+    closing: str = ""
 
 
 def risk_level(verdict: Verdict, warning_level: float) -> str:
@@ -67,10 +68,12 @@ def check_listing(step1: Step1Result, answers: AIAnswers, scoring: ScoringModel)
     forced = []
     if signals.always_warn and verdict.scam_probability < scoring.warning_level:
         forced = [s.reason for s in signals.found if s.id in {"event_mismatch", "format_mismatch", "on_blocklist"}]
+    risk = risk_level(verdict, scoring.warning_level)
     return CheckResult(
         verdict=verdict,
-        risk=risk_level(verdict, scoring.warning_level),
+        risk=risk,
         score_percent=round(100 * verdict.scam_probability),
         forced_by=forced,
-        next_steps=next_steps(answers.answers, signals, verdict),
+        next_steps=next_steps(answers.answers, signals, risk),
+        closing=closing_line(risk),
     )

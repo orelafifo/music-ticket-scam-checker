@@ -49,6 +49,7 @@ class LinkReport:
     age_days: int | None = None
     certificate_age_days: int | None = None
     notes: list[str] = field(default_factory=list)
+    developer_notes: list[str] = field(default_factory=list)  # shown only in developer mode
 
     @property
     def is_new_website(self) -> bool:
@@ -132,9 +133,8 @@ def _check_address(report: LinkReport) -> None:
     ending = report.domain.rsplit(".", 1)[-1]
     report.has_risky_ending = ending in RISKY_ENDINGS
     if report.has_risky_ending:
-        report.notes.append(
-            f"Addresses ending in .{ending} are often used by scam sites (on its own this proves nothing)."
-        )
+        report.notes.append(f"Addresses ending in .{ending} are often used by scam sites.")
+        report.developer_notes.append(f"Risky ending .{ending}: on its own this proves nothing (MEDIUM, 1 point).")
 
 
 def _check_public_records(report: LinkReport, lookups: WebsiteLookups) -> None:

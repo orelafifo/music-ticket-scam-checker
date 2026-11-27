@@ -52,7 +52,7 @@ def test_ai_answers_and_step1_points_add_up():
     assert stranger.verdict.warning and stranger.verdict.reasons
     assert stranger.risk == "High" and 0 <= stranger.score_percent <= 100
     assert any("PayPal Goods and Services" in step for step in stranger.next_steps)
-    assert any("Report Fraud" in step for step in stranger.next_steps)
+    assert "Report Fraud" in stranger.closing
 
 
 def test_official_transfer_is_shown_as_a_good_sign():
@@ -60,7 +60,7 @@ def test_official_transfer_is_shown_as_a_good_sign():
     check = check_listing(step1(), answers, MODEL)
     assert not check.verdict.warning and check.verdict.good_signs
     assert check.risk == "Low"
-    assert not any("Report Fraud" in step for step in check.next_steps)
+    assert "Report Fraud" not in check.closing
 
 
 def test_event_mismatch_is_high_risk_and_says_why():

@@ -94,6 +94,23 @@ def artist_matches(query: str, name: str) -> bool:
     return _norm(query) in _norm(name) or SequenceMatcher(None, _norm(query), _norm(name)).ratio() > 0.85
 
 
+FESTIVAL = re.compile(r"festival|\bfest\b|weekender", re.IGNORECASE)
+
+
+def is_festival(name: str) -> bool:
+    return bool(FESTIVAL.search(name))
+
+
+def dates_match(official: date | None, listed: date, festival: bool) -> bool:
+    """Gigs must match exactly. Festivals run over several days but are listed under one date
+    (e.g. Reading on its first day), so any day from 1 day before to 5 days after counts."""
+    if official is None:
+        return False
+    if festival:
+        return -1 <= (listed - official).days <= 5
+    return official == listed
+
+
 def judge(
     events: list[OfficialEvent], artist: str, venue: str, event_date: date | None, today: date, source: str
 ) -> EventReport:
@@ -103,9 +120,11 @@ def judge(
         report.notes.append("No official event found for this artist.")
         return report
 
+    festival = is_festival(artist)
+
     def is_match(event: OfficialEvent) -> bool:
         ok_venue = venue_matches(venue, event.venue) if venue else True
-        ok_date = (event.date == event_date) if event_date else True
+        ok_date = dates_match(event.date, event_date, festival) if event_date else True
         return ok_venue and ok_date
 
     matches = [event for event in events if is_match(event)]
