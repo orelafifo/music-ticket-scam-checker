@@ -27,10 +27,7 @@ EXAMPLE_ANSWERS = [
     "An unknown website",
     "A random seller account on X replied to my post asking for tickets",
 ]
-ANSWER_TIP = (
-    "Say if they're a stranger or someone you know, whether the group chat is private or an open group, "
-    "and whether it was a public post or a private message."
-)
+ANSWER_TIP = "Say if they're a stranger or someone you know, and where: private chat, open group or public post."
 
 
 class SourceCategoriser(Protocol):

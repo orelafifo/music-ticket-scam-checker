@@ -30,7 +30,7 @@ STEP2_MODEL = "qwen3.5:4b"
 ATTEMPTS = 2  # ask again once if the reply is broken
 # Medium risk starts at the warning level the sensitivity analysis chose for a £10 false alarm
 # (outputs/sensitivity_qwen_rag.csv): a listing the checker would warn about if false alarms cost less.
-MEDIUM_RISK_FROM = 0.40
+MEDIUM_RISK_FROM = 0.42
 
 
 def answer_questions(cleaned_text: str, asker: OllamaAsker, library: Library) -> AIAnswers:

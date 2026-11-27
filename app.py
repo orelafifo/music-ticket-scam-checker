@@ -250,8 +250,8 @@ def show_event_result(report: EventReport) -> None:
 
 def ask_how_seller_was_found() -> tuple[str, SellerSource]:
     st.subheader("5. How did you come across this seller?")
+    st.info(f"💡 Tip: {ANSWER_TIP}")
     answer = st.text_input("Describe it in your own words", placeholder="e.g. " + EXAMPLE_ANSWERS[0])
-    st.caption(f"💡 Tip: {ANSWER_TIP}")
     st.caption("Examples: " + " · ".join(f'"{example}"' for example in EXAMPLE_ANSWERS))
     source = KeywordSourceCategoriser().categorise(answer) if answer.strip() else SellerSource.UNKNOWN
     return answer.strip(), source
@@ -268,12 +268,14 @@ def ask_number_or_not_available(column, label: str, key: str) -> int | None:
 
 def ask_about_seller_account() -> SellerAccount:
     st.subheader("6. About the seller's account")
-    st.caption("If not shown or available, tick N/A.")
-    followers = ask_number_or_not_available(st, "Follower count", "followers")
-    st.markdown('When did the account join? Most apps show this, e.g. "Joined March 2024".')
-    left, right = st.columns(2)
-    month = left.selectbox("Month", ["Not shown", *MONTH_NAMES], key="joined-month")
-    year = right.selectbox("Year", ["Not shown", *range(date.today().year, 2005, -1)], key="joined-year")
+    st.caption(
+        'If not shown, tick N/A or choose "Not shown". Most apps show when an account joined, e.g. "Joined March 2024".'
+    )
+    # Side by side, narrow boxes: followers, then the month and year the account joined.
+    followers_box, month_box, year_box, _ = st.columns([1.2, 1.2, 1, 0.6])
+    followers = ask_number_or_not_available(followers_box, "Follower count", "followers")
+    month = month_box.selectbox("Joined (month)", ["Not shown", *MONTH_NAMES], key="joined-month")
+    year = year_box.selectbox("Joined (year)", ["Not shown", *range(date.today().year, 2005, -1)], key="joined-year")
     age_months = None
     if year != "Not shown":
         month_number = None if month == "Not shown" else MONTH_NAMES.index(month) + 1
