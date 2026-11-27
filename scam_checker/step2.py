@@ -21,7 +21,7 @@ from .local_ai import LocalAIError
 from .scoring.ask_ai import AIAnswers, OllamaAsker, parse_reply, prompt_for
 from .scoring.library import Library
 from .scoring.questions import QUESTIONS
-from .scoring.scorer import ScoringModel, Verdict
+from .scoring.scorer import ScoringModel, Verdict, make_consistent
 from .scoring.step1_signals import step1_signals
 from .step1 import Step1Result
 
@@ -30,7 +30,7 @@ STEP2_MODEL = "qwen3.5:4b"
 ATTEMPTS = 2  # ask again once if the reply is broken
 # Medium risk starts at the warning level the sensitivity analysis chose for a £10 false alarm
 # (outputs/sensitivity_qwen_rag.csv): a listing the checker would warn about if false alarms cost less.
-MEDIUM_RISK_FROM = 0.42
+MEDIUM_RISK_FROM = 0.38
 
 
 def answer_questions(cleaned_text: str, asker: OllamaAsker, library: Library) -> AIAnswers:
@@ -42,6 +42,7 @@ def answer_questions(cleaned_text: str, asker: OllamaAsker, library: Library) ->
         except RuntimeError as error:
             raise LocalAIError(str(error)) from error
         if result.valid:
+            result.answers = make_consistent(result.answers)  # so the advice and developer view agree too
             return result
     raise LocalAIError("The AI's answer was incomplete. Please press Check again.")
 

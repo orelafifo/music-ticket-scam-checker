@@ -26,6 +26,7 @@ from scam_checker.context.link_check import LinkReport, WebsiteLookups, check_li
 from scam_checker.context.seller import (
     ANSWER_TIP,
     EXAMPLE_ANSWERS,
+    QUICK_PICKS,
     KeywordSourceCategoriser,
     SellerAccount,
     SellerSource,
@@ -251,10 +252,12 @@ def show_event_result(report: EventReport) -> None:
 def ask_how_seller_was_found() -> tuple[str, SellerSource]:
     st.subheader("5. How did you come across this seller?")
     st.info(f"💡 Tip: {ANSWER_TIP}")
-    answer = st.text_input("Describe it in your own words", placeholder="e.g. " + EXAMPLE_ANSWERS[0])
+    quick_pick = st.pills("Quick pick", list(QUICK_PICKS))
+    answer = st.text_input("Or describe it in your own words", placeholder="e.g. " + EXAMPLE_ANSWERS[0])
     st.caption("Examples: " + " · ".join(f'"{example}"' for example in EXAMPLE_ANSWERS))
-    source = KeywordSourceCategoriser().categorise(answer) if answer.strip() else SellerSource.UNKNOWN
-    return answer.strip(), source
+    if answer.strip():  # the user's own words win over a quick pick
+        return answer.strip(), KeywordSourceCategoriser().categorise(answer)
+    return quick_pick or "", QUICK_PICKS.get(quick_pick, SellerSource.UNKNOWN)
 
 
 def ask_number_or_not_available(column, label: str, key: str) -> int | None:

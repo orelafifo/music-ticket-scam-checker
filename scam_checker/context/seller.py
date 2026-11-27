@@ -23,6 +23,13 @@ class SellerSource(str, Enum):
     UNKNOWN = "not sure"
 
 
+# Quick picks: each one is clear on its own, so "someone I know" in a private group is never read as a stranger.
+QUICK_PICKS: dict[str, SellerSource] = {
+    "Someone I know": SellerSource.KNOWN_PERSON,
+    "A public post from someone I don't know": SellerSource.STRANGERS_POST,
+    "A stranger replied to my post or comment": SellerSource.RANDOM_COMMENT,
+    "A stranger in an open group chat": SellerSource.OPEN_GROUP_CHAT,
+}
 EXAMPLE_ANSWERS = [
     "An unknown website",
     "A random seller account on X replied to my post asking for tickets",

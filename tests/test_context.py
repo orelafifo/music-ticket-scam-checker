@@ -61,3 +61,11 @@ def test_account_age_from_the_join_date():
 
 def test_not_available_is_shown_as_unknown():
     assert SellerAccount().describe() == ["Followers: unknown", "Account age: unknown"]
+
+
+def test_quick_picks_mean_the_same_as_typing_them():
+    from scam_checker.context.seller import QUICK_PICKS
+
+    assert len(QUICK_PICKS) == 4
+    for pick, source in QUICK_PICKS.items():
+        assert KeywordSourceCategoriser().categorise(pick) == source, pick

@@ -44,8 +44,23 @@ REAL_WORLD_SCAM_RATE = 0.05  # assumed share of checked listings that are scams 
 LEVELS_TO_TRY = np.round(np.arange(0.05, 0.96, 0.01), 2)
 
 
+# Answers that can't both be true. If the AI says yes to the first, the second counts as no.
+# A message that claims to BE a ticket company is not an official transfer (see the question text);
+# the AI said yes to both on a test screenshot, 27 Nov 2026.
+CANNOT_BOTH_BE_YES = {"fake_official": "official_transfer"}
+
+
+def make_consistent(answers: dict[str, str]) -> dict[str, str]:
+    fixed = dict(answers)
+    for wins, loses in CANNOT_BOTH_BE_YES.items():
+        if str(fixed.get(wins, "")).strip().lower() == "yes":
+            fixed[loses] = "no"
+    return fixed
+
+
 def answers_to_numbers(answers: dict[str, str], question_ids: list[str]) -> list[float]:
-    """'yes' -> 1, anything else ('no', 'unclear', missing) -> 0."""
+    """'yes' -> 1, anything else ('no', 'unclear', missing) -> 0, after making contradictory answers consistent."""
+    answers = make_consistent(answers)
     return [1.0 if str(answers.get(question_id, "")).strip().lower() == "yes" else 0.0 for question_id in question_ids]
 
 

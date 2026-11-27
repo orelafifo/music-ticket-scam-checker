@@ -126,3 +126,13 @@ def test_every_weight_follows_its_direction():
     for question_id, weight in model.weights.items():
         sign = 1 if find_question(question_id).direction is Direction.RED_FLAG else -1
         assert weight * sign >= 0
+
+
+def test_fake_official_message_is_never_an_official_transfer():
+    from scam_checker.scoring.scorer import answers_to_numbers, make_consistent
+
+    answers = {"fake_official": "yes", "official_transfer": "yes"}
+    assert make_consistent(answers)["official_transfer"] == "no"
+    assert answers_to_numbers(answers, ["fake_official", "official_transfer"]) == [1.0, 0.0]
+    genuine = {"fake_official": "no", "official_transfer": "yes"}
+    assert answers_to_numbers(genuine, ["fake_official", "official_transfer"]) == [0.0, 1.0]
